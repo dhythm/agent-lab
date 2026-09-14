@@ -1,6 +1,8 @@
 "use client"
 
-import { FolderGit2, GitBranch, ChevronDown } from "lucide-react"
+import { useRef } from "react"
+import { FolderGit2, GitBranch, ChevronDown, Paperclip, X, LayoutTemplate } from "lucide-react"
+import { taskPresets } from "@/lib/agent-lab/presets"
 import type { TaskType } from "@/lib/agent-lab/types"
 
 export interface TaskFormValue {
@@ -8,13 +10,17 @@ export interface TaskFormValue {
   repository: string
   branch: string
   type: TaskType
+  files: File[]
+  presetId?: string
 }
 
 export const DEFAULT_TASK_FORM: TaskFormValue = {
-  task: "このリポジトリを調査し、ログイン済みユーザーがトップページにアクセスした場合は /mypage に遷移するよう修正してください。関連するテストを追加し、既存テストもすべて実行してください。",
+  task: taskPresets[0].prompt,
   repository: "",
   branch: "main",
   type: "coding",
+  files: [],
+  presetId: taskPresets[0].id,
 }
 
 const TASK_TYPES: { value: TaskType; label: string }[] = [
@@ -28,28 +34,72 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   return <label className="text-xs font-medium text-muted-foreground">{children}</label>
 }
 
+function formatSize(bytes: number): string {
+  if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${bytes} B`
+}
+
+export interface AttachmentSummary {
+  name: string
+  size: number
+}
+
 export function TaskInput({
   value,
   onChange,
+  onPreset,
   disabled,
+  savedAttachments,
 }: {
   value: TaskFormValue
   onChange: (next: TaskFormValue) => void
+  onPreset: (presetId: string) => void
   disabled?: boolean
+  /** Attachments of a task loaded from history (read-only). */
+  savedAttachments?: AttachmentSummary[]
 }) {
+  const fileInput = useRef<HTMLInputElement>(null)
   const set = <K extends keyof TaskFormValue>(key: K, v: TaskFormValue[K]) => onChange({ ...value, [key]: v })
+
+  function addFiles(list: FileList | null) {
+    if (!list) return
+    const incoming = Array.from(list)
+    const names = new Set(incoming.map((f) => f.name))
+    set("files", [...value.files.filter((f) => !names.has(f.name)), ...incoming])
+    if (fileInput.current) fileInput.current.value = ""
+  }
 
   return (
     <section className="rounded-xl border border-border bg-card p-4 md:p-5">
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between gap-3">
         <FieldLabel>Task</FieldLabel>
-        <span className="text-xs text-muted-foreground">{value.task.length} chars</span>
+        <div className="flex items-center gap-2">
+          <div className="relative flex items-center rounded-lg border border-border bg-background px-2 py-1">
+            <LayoutTemplate className="mr-1.5 size-3.5 text-muted-foreground" />
+            <select
+              value={value.presetId ?? ""}
+              onChange={(e) => e.target.value && onPreset(e.target.value)}
+              disabled={disabled}
+              className="cursor-pointer appearance-none bg-transparent pr-5 text-xs font-medium text-foreground outline-none"
+            >
+              <option value="">Custom task</option>
+              {taskPresets.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2 size-3.5 text-muted-foreground" />
+          </div>
+          <span className="text-xs text-muted-foreground">{value.task.length} chars</span>
+        </div>
       </div>
       <textarea
         value={value.task}
-        onChange={(e) => set("task", e.target.value)}
+        onChange={(e) => onChange({ ...value, task: e.target.value, presetId: undefined })}
         disabled={disabled}
-        rows={3}
+        rows={4}
         className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2.5 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:opacity-60"
         placeholder="Describe the task for both agents..."
       />
@@ -64,7 +114,7 @@ export function TaskInput({
               onChange={(e) => set("repository", e.target.value)}
               disabled={disabled}
               className="w-full bg-transparent font-mono text-sm text-foreground outline-none placeholder:text-muted-foreground"
-              placeholder="owner/repo or https://github.com/owner/repo"
+              placeholder="owner/repo or https://github.com/owner/repo (optional)"
             />
           </div>
         </div>
@@ -103,6 +153,54 @@ export function TaskInput({
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="mt-3">
+        <div className="flex items-center justify-between">
+          <FieldLabel>Attachments</FieldLabel>
+          {!savedAttachments && (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => fileInput.current?.click()}
+              className="inline-flex items-center gap-1 text-xs font-medium text-foreground hover:underline disabled:opacity-50"
+            >
+              <Paperclip className="size-3.5" />
+              Add files
+            </button>
+          )}
+          <input
+            ref={fileInput}
+            type="file"
+            multiple
+            hidden
+            onChange={(e) => addFiles(e.target.files)}
+          />
+        </div>
+        <ul className="mt-1 flex flex-wrap gap-1.5">
+          {(savedAttachments ?? value.files).map((file) => (
+            <li
+              key={file.name}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2 py-0.5 font-mono text-xs text-foreground/80"
+            >
+              {file.name}
+              <span className="text-muted-foreground">{formatSize(file.size)}</span>
+              {!savedAttachments && !disabled && (
+                <button
+                  type="button"
+                  aria-label={`Remove ${file.name}`}
+                  onClick={() => set("files", value.files.filter((f) => f !== file))}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="size-3" />
+                </button>
+              )}
+            </li>
+          ))}
+          {(savedAttachments ?? value.files).length === 0 && (
+            <li className="text-xs text-muted-foreground">None</li>
+          )}
+        </ul>
       </div>
     </section>
   )

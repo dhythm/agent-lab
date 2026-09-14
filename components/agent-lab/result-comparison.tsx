@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { CircleCheckBig, CircleX, ChevronDown, ChevronRight } from "lucide-react"
+import { CircleCheckBig, CircleX, ChevronDown, ChevronRight, Download } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ProviderMark } from "./provider-mark"
 import { providerConfigs, providerOrder } from "@/lib/agent-lab-data"
@@ -42,6 +42,24 @@ function ResultCard({ id, run }: { id: ProviderId; run?: AgentRun }) {
       {run?.result && (
         <div className="mt-3 space-y-2 border-t border-border pt-3">
           <p className="text-sm leading-relaxed text-foreground">{run.result.summary}</p>
+          {(run.result.artifacts?.length ?? 0) > 0 && (
+            <div>
+              <div className="mb-1 text-xs font-medium text-muted-foreground">Output files</div>
+              <ul className="flex flex-wrap gap-1.5">
+                {run.result.artifacts!.map((file) => (
+                  <li key={file.name}>
+                    <a
+                      href={`/api/runs/${run.id}/artifacts/${encodeURIComponent(file.name)}`}
+                      className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-1.5 py-0.5 font-mono text-[11px] text-foreground hover:bg-muted"
+                    >
+                      <Download className="size-3 text-muted-foreground" />
+                      {file.name}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {run.result.changedFiles.length > 0 && (
             <ul className="flex flex-wrap gap-1.5">
               {run.result.changedFiles.map((file) => (

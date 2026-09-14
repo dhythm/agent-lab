@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { TriangleAlert } from "lucide-react"
 import { TopBar, type HistoryItem } from "@/components/agent-lab/top-bar"
-import { TaskInput, DEFAULT_TASK_FORM, type TaskFormValue } from "@/components/agent-lab/task-input"
+import {
+  TaskInput,
+  DEFAULT_TASK_FORM,
+  type AttachmentSummary,
+  type TaskFormValue,
+} from "@/components/agent-lab/task-input"
+import { findPreset } from "@/lib/agent-lab/presets"
 import { AgentSetup, type ProviderAvailability } from "@/components/agent-lab/agent-setup"
 import { AgentColumn } from "@/components/agent-lab/agent-column"
 import { ResultComparison } from "@/components/agent-lab/result-comparison"
@@ -17,7 +23,7 @@ import type { TaskRecord } from "@/lib/agent-lab/run-store"
 const TERMINAL = new Set(["completed", "failed", "cancelled"])
 
 interface ActiveTask {
-  task: AgentTask
+  task: AgentTask & { attachments?: AttachmentSummary[] }
   runIds: Partial<Record<ProviderId, string>>
   initialRuns: Partial<Record<ProviderId, AgentRun>>
   evaluations: Partial<Record<ProviderId, EvaluationScore>>
@@ -89,17 +95,14 @@ export default function Page() {
     setError(undefined)
     setSubmitting(true)
     try {
-      const response = await fetch("/api/runs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task: form.task,
-          repository: form.repository || undefined,
-          branch: form.branch || undefined,
-          type: form.type,
-          providers: selected,
-        }),
-      })
+      const formData = new FormData()
+      formData.set("task", form.task)
+      if (form.repository) formData.set("repository", form.repository)
+      if (form.branch) formData.set("branch", form.branch)
+      formData.set("type", form.type)
+      for (const provider of selected) formData.append("providers", provider)
+      for (const file of form.files) formData.append("files", file)
+      const response = await fetch("/api/runs", { method: "POST", body: formData })
       if (!response.ok) throw new Error(await readError(response))
       const body = (await response.json()) as { task: AgentTask; runs: { id: string; provider: ProviderId }[] }
       const runIds: Partial<Record<ProviderId, string>> = {}
@@ -139,6 +142,7 @@ export default function Page() {
         repository: record.task.repository ?? "",
         branch: record.task.branch ?? "",
         type: record.task.type,
+        files: [],
       })
       setSelected(record.runs.map((r) => r.provider))
       setActive({ task: record.task, runIds, initialRuns, evaluations })
@@ -147,6 +151,31 @@ export default function Page() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load task")
     }
+  }
+
+  async function handlePreset(presetId: string) {
+    const preset = findPreset(presetId)
+    if (!preset) return
+    let files: File[] = []
+    try {
+      files = await Promise.all(
+        (preset.samples ?? []).map(async (sample) => {
+          const response = await fetch(sample.url)
+          if (!response.ok) throw new Error(`Failed to load ${sample.name}`)
+          return new File([await response.blob()], sample.name)
+        }),
+      )
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load sample files")
+    }
+    setForm({
+      task: preset.prompt,
+      repository: preset.repository ?? "",
+      branch: preset.repository ? "main" : "",
+      type: preset.type,
+      files,
+      presetId,
+    })
   }
 
   function handleNewTask() {
@@ -185,7 +214,13 @@ export default function Page() {
       />
 
       <main className="mx-auto max-w-[1400px] space-y-6 px-4 py-6 md:px-6">
-        <TaskInput value={form} onChange={setForm} disabled={anyActive || submitting} />
+        <TaskInput
+          value={form}
+          onChange={setForm}
+          onPreset={handlePreset}
+          disabled={anyActive || submitting}
+          savedAttachments={active ? (active.task.attachments ?? []) : undefined}
+        />
 
         <AgentSetup
           selected={selected}
