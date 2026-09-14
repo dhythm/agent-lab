@@ -13,6 +13,7 @@ export interface AgentLabConfig {
     enabled: boolean
     model: string
     inputPricePerMillion: number
+    cachedInputPricePerMillion: number
     outputPricePerMillion: number
   }
   githubToken?: string
@@ -38,6 +39,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AgentLabConfig
       model: env.OPENAI_AGENT_MODEL ?? "gpt-5.6-sol",
       // List prices are not returned by the Agents API; override via env when they change.
       inputPricePerMillion: readNumber(env.OPENAI_INPUT_PRICE_PER_MILLION, 4),
+      cachedInputPricePerMillion: readNumber(env.OPENAI_CACHED_INPUT_PRICE_PER_MILLION, 0.4),
       outputPricePerMillion: readNumber(env.OPENAI_OUTPUT_PRICE_PER_MILLION, 20),
     },
     githubToken: env.GITHUB_TOKEN,

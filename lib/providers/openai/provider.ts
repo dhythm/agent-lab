@@ -39,12 +39,20 @@ function cloneCommand(repository: string, branch: string | undefined, token: str
 
 function toUsage(usage: TokenUsage | null | undefined): ProviderUsage | undefined {
   if (!usage) return undefined
-  return { inputTokens: usage.input_tokens, outputTokens: usage.output_tokens }
+  return {
+    inputTokens: usage.input_tokens,
+    cachedInputTokens: usage.input_tokens_details?.cached_tokens ?? undefined,
+    outputTokens: usage.output_tokens,
+  }
 }
 
-function estimateCost(usage: ProviderUsage | undefined, config: AgentLabConfig): number | undefined {
+export function estimateCost(usage: ProviderUsage | undefined, config: AgentLabConfig): number | undefined {
   if (!usage) return undefined
-  const input = ((usage.inputTokens ?? 0) / 1_000_000) * config.openai.inputPricePerMillion
+  const cached = usage.cachedInputTokens ?? 0
+  const uncached = Math.max(0, (usage.inputTokens ?? 0) - cached)
+  const input =
+    (uncached / 1_000_000) * config.openai.inputPricePerMillion +
+    (cached / 1_000_000) * config.openai.cachedInputPricePerMillion
   const output = ((usage.outputTokens ?? 0) / 1_000_000) * config.openai.outputPricePerMillion
   return Math.round((input + output) * 10_000) / 10_000
 }
@@ -188,8 +196,13 @@ export function createOpenAIProvider(config: AgentLabConfig, files: FileStore): 
     const artifacts: StoredFile[] = []
     if (state.sessionId) {
       try {
-        const session = await client.beta.agents.sessions.retrieve(state.sessionId)
-        usage = toUsage(session.usage) ?? usage
+        // Usage is filled in shortly after the turn completes; poll briefly for it.
+        for (let attempt = 0; attempt < 6; attempt += 1) {
+          const session = await client.beta.agents.sessions.retrieve(state.sessionId)
+          usage = toUsage(session.usage) ?? usage
+          if (usage?.inputTokens) break
+          await new Promise((resolve) => setTimeout(resolve, 2000))
+        }
         for await (const artifact of client.beta.agents.sessions.artifacts.list(state.sessionId)) {
           const response = await client.beta.agents.sessions.artifacts.content(artifact.id, {
             session_id: state.sessionId,

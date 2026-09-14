@@ -21,6 +21,8 @@ export interface ProviderRunSink {
 
 export interface ProviderUsage {
   inputTokens?: number
+  /** Portion of inputTokens served from cache (billed at a lower rate). */
+  cachedInputTokens?: number
   outputTokens?: number
 }
 
