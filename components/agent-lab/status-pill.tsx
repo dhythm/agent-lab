@@ -1,12 +1,18 @@
 import { cn } from "@/lib/utils"
+import type { RunStatus } from "@/lib/agent-lab/types"
 
-type Tone = "ready" | "running" | "completed" | "failed"
+export type Tone = "ready" | RunStatus
 
 const tones: Record<Tone, { wrap: string; dot: string; label: string }> = {
   ready: {
     wrap: "bg-zinc-100 text-zinc-600 border-zinc-200",
     dot: "bg-zinc-400",
     label: "Ready",
+  },
+  queued: {
+    wrap: "bg-zinc-100 text-zinc-600 border-zinc-200",
+    dot: "bg-zinc-400 animate-pulse",
+    label: "Queued",
   },
   running: {
     wrap: "bg-blue-50 text-blue-700 border-blue-100",
@@ -22,6 +28,11 @@ const tones: Record<Tone, { wrap: string; dot: string; label: string }> = {
     wrap: "bg-red-50 text-red-700 border-red-100",
     dot: "bg-red-500",
     label: "Failed",
+  },
+  cancelled: {
+    wrap: "bg-zinc-100 text-zinc-600 border-zinc-200",
+    dot: "bg-zinc-500",
+    label: "Cancelled",
   },
 }
 

@@ -1,110 +1,252 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { TriangleAlert } from "lucide-react"
-import { TopBar } from "@/components/agent-lab/top-bar"
-import { TaskInput } from "@/components/agent-lab/task-input"
-import { AgentSetup } from "@/components/agent-lab/agent-setup"
+import { TopBar, type HistoryItem } from "@/components/agent-lab/top-bar"
+import { TaskInput, DEFAULT_TASK_FORM, type TaskFormValue } from "@/components/agent-lab/task-input"
+import { AgentSetup, type ProviderAvailability } from "@/components/agent-lab/agent-setup"
 import { AgentColumn } from "@/components/agent-lab/agent-column"
 import { ResultComparison } from "@/components/agent-lab/result-comparison"
-import { Evaluation } from "@/components/agent-lab/evaluation"
+import { Evaluation, EMPTY_SCORE } from "@/components/agent-lab/evaluation"
 import { EventDrawer } from "@/components/agent-lab/event-drawer"
-import {
-  openaiConfig,
-  claudeConfig,
-  openaiMetrics,
-  claudeMetrics,
-  openaiTimeline,
-  claudeTimeline,
-  type RunStatus,
-  type TimelineEvent,
-} from "@/lib/agent-lab-data"
+import { useRunStream } from "@/hooks/use-run-stream"
+import { providerConfigs, providerOrder, type EvaluationKey } from "@/lib/agent-lab-data"
+import type { AgentEvent, AgentRun, AgentTask, EvaluationScore, ProviderId } from "@/lib/agent-lab/types"
+import type { TaskRecord } from "@/lib/agent-lab/run-store"
+
+const TERMINAL = new Set(["completed", "failed", "cancelled"])
+
+interface ActiveTask {
+  task: AgentTask
+  runIds: Partial<Record<ProviderId, string>>
+  initialRuns: Partial<Record<ProviderId, AgentRun>>
+  evaluations: Partial<Record<ProviderId, EvaluationScore>>
+}
+
+async function readError(response: Response): Promise<string> {
+  try {
+    const body = (await response.json()) as { error?: string }
+    return body.error ?? response.statusText
+  } catch {
+    return response.statusText
+  }
+}
 
 export default function Page() {
-  const [status, setStatus] = useState<RunStatus>("completed")
-  const [selected, setSelected] = useState<TimelineEvent | null>(null)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [form, setForm] = useState<TaskFormValue>(DEFAULT_TASK_FORM)
+  const [selected, setSelected] = useState<ProviderId[]>(["openai", "anthropic"])
+  const [availability, setAvailability] = useState<Partial<Record<ProviderId, ProviderAvailability>>>({})
+  const [history, setHistory] = useState<HistoryItem[]>([])
+  const [active, setActive] = useState<ActiveTask | undefined>()
+  const [selectedEvent, setSelectedEvent] = useState<AgentEvent | null>(null)
+  const [error, setError] = useState<string | undefined>()
+  const [submitting, setSubmitting] = useState(false)
 
-  function handleRun() {
-    if (timer.current) clearTimeout(timer.current)
-    setStatus("running")
-    timer.current = setTimeout(() => setStatus("completed"), 4000)
+  const openai = useRunStream(active?.runIds.openai, active?.initialRuns.openai)
+  const anthropic = useRunStream(active?.runIds.anthropic, active?.initialRuns.anthropic)
+  const runs = useMemo(
+    () => ({ openai: openai.run, anthropic: anthropic.run }) as Partial<Record<ProviderId, AgentRun>>,
+    [openai.run, anthropic.run],
+  )
+
+  const refreshHistory = useCallback(async () => {
+    try {
+      const response = await fetch("/api/runs")
+      if (!response.ok) return
+      const body = (await response.json()) as { tasks: { task: AgentTask; runs: HistoryItem["runs"] }[] }
+      setHistory(
+        body.tasks.map((t) => ({ taskId: t.task.id, title: t.task.title, createdAt: t.task.createdAt, runs: t.runs })),
+      )
+    } catch (e) {
+      console.error("history load failed", e)
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshHistory()
+    const taskId = new URLSearchParams(window.location.search).get("task")
+    if (taskId) void handleSelectTask(taskId)
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then((body: { providers: Record<ProviderId, ProviderAvailability> }) => {
+        setAvailability(body.providers)
+        setSelected(providerOrder.filter((id) => body.providers[id]?.enabled))
+      })
+      .catch((e) => console.error("config load failed", e))
+  }, [refreshHistory])
+
+  const anyActive = providerOrder.some((id) => {
+    const status = runs[id]?.status
+    return status === "running" || status === "queued"
+  })
+  const allSettled = active !== undefined && !anyActive && providerOrder.some((id) => runs[id])
+
+  useEffect(() => {
+    if (allSettled) void refreshHistory()
+  }, [allSettled, refreshHistory])
+
+  async function handleRun() {
+    setError(undefined)
+    setSubmitting(true)
+    try {
+      const response = await fetch("/api/runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task: form.task,
+          repository: form.repository || undefined,
+          branch: form.branch || undefined,
+          type: form.type,
+          providers: selected,
+        }),
+      })
+      if (!response.ok) throw new Error(await readError(response))
+      const body = (await response.json()) as { task: AgentTask; runs: { id: string; provider: ProviderId }[] }
+      const runIds: Partial<Record<ProviderId, string>> = {}
+      for (const run of body.runs) runIds[run.provider] = run.id
+      setActive({ task: body.task, runIds, initialRuns: {}, evaluations: {} })
+      window.history.replaceState(null, "", `?task=${body.task.id}`)
+      void refreshHistory()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to start")
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  function handleStop() {
-    if (timer.current) clearTimeout(timer.current)
-    setStatus("completed")
+  async function handleStop(id: ProviderId) {
+    const runId = active?.runIds[id]
+    if (!runId) return
+    const response = await fetch(`/api/runs/${runId}/cancel`, { method: "POST" })
+    if (!response.ok) setError(await readError(response))
   }
 
-  const showComparison = status === "completed"
-  const showFailed = status === "failed"
+  async function handleSelectTask(taskId: string) {
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`)
+      if (!response.ok) throw new Error(await readError(response))
+      const record = (await response.json()) as TaskRecord
+      const runIds: Partial<Record<ProviderId, string>> = {}
+      const initialRuns: Partial<Record<ProviderId, AgentRun>> = {}
+      const evaluations: Partial<Record<ProviderId, EvaluationScore>> = {}
+      for (const run of record.runs) {
+        runIds[run.provider] = run.id
+        initialRuns[run.provider] = run
+        if (record.evaluations[run.id]) evaluations[run.provider] = record.evaluations[run.id]
+      }
+      setForm({
+        task: record.task.prompt,
+        repository: record.task.repository ?? "",
+        branch: record.task.branch ?? "",
+        type: record.task.type,
+      })
+      setSelected(record.runs.map((r) => r.provider))
+      setActive({ task: record.task, runIds, initialRuns, evaluations })
+      window.history.replaceState(null, "", `?task=${record.task.id}`)
+      setError(undefined)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load task")
+    }
+  }
+
+  function handleNewTask() {
+    setActive(undefined)
+    setForm(DEFAULT_TASK_FORM)
+    setError(undefined)
+    window.history.replaceState(null, "", window.location.pathname)
+  }
+
+  async function handleScore(provider: ProviderId, key: EvaluationKey, value: number) {
+    if (!active) return
+    const runId = active.runIds[provider]
+    if (!runId) return
+    const next: EvaluationScore = { ...(active.evaluations[provider] ?? EMPTY_SCORE), [key]: value }
+    setActive({ ...active, evaluations: { ...active.evaluations, [provider]: next } })
+    if (Object.values(next).some((v) => v === 0)) return // save once every criterion is scored
+    const response = await fetch(`/api/runs/${runId}/evaluation`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(next),
+    })
+    if (!response.ok) setError(await readError(response))
+  }
+
+  const failed = providerOrder.filter((id) => runs[id]?.status === "failed")
+  const showComparison = allSettled
+  const evaluable = providerOrder.filter((id) => runs[id] && TERMINAL.has(runs[id]!.status))
 
   return (
     <div className="min-h-screen bg-[#fafafa] text-foreground">
-      <TopBar status={status} onStatusChange={setStatus} />
+      <TopBar
+        history={history}
+        activeTaskId={active?.task.id}
+        onSelectTask={handleSelectTask}
+        onNewTask={handleNewTask}
+      />
 
       <main className="mx-auto max-w-[1400px] space-y-6 px-4 py-6 md:px-6">
-        {/* 1. Task input */}
-        <TaskInput />
+        <TaskInput value={form} onChange={setForm} disabled={anyActive || submitting} />
 
-        {/* 2. Agent selection & run */}
-        <AgentSetup status={status} onRun={handleRun} />
+        <AgentSetup
+          selected={selected}
+          onSelectedChange={setSelected}
+          availability={availability}
+          isRunning={anyActive || submitting}
+          canRun={selected.length > 0 && form.task.trim().length > 0}
+          onRun={handleRun}
+        />
 
-        {/* 3. Execution comparison */}
+        {error && (
+          <div className="flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-red-600" />
+            <div className="text-sm text-red-700">{error}</div>
+          </div>
+        )}
+
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-foreground">
-              Execution comparison
-            </h2>
-            <span className="text-xs text-muted-foreground">
-              Click any step to inspect the underlying tool call
-            </span>
+            <h2 className="text-sm font-semibold text-foreground">Execution comparison</h2>
+            <span className="text-xs text-muted-foreground">Click any step to inspect the underlying tool call</span>
           </div>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <AgentColumn
-              config={openaiConfig}
-              timeline={openaiTimeline}
-              metrics={openaiMetrics}
-              status={status}
-              runningCount={7}
-              onSelect={setSelected}
-              onStop={handleStop}
+              config={providerConfigs.openai}
+              run={runs.openai}
+              onSelect={setSelectedEvent}
+              onStop={() => handleStop("openai")}
+              connectionError={openai.connectionError}
             />
             <AgentColumn
-              config={claudeConfig}
-              timeline={claudeTimeline}
-              metrics={claudeMetrics}
-              status={status}
-              runningCount={9}
-              onSelect={setSelected}
-              onStop={handleStop}
+              config={providerConfigs.anthropic}
+              run={runs.anthropic}
+              onSelect={setSelectedEvent}
+              onStop={() => handleStop("anthropic")}
+              connectionError={anthropic.connectionError}
             />
           </div>
         </section>
 
-        {/* 4. Result comparison + evaluation */}
-        {showFailed && (
+        {failed.length > 0 && !anyActive && (
           <div className="flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
             <TriangleAlert className="mt-0.5 size-4 shrink-0 text-red-600" />
             <div>
-              <div className="text-sm font-medium text-red-700">Run failed</div>
-              <div className="text-xs text-red-600/80">
-                One or more agents did not complete the task. Review the execution
-                timeline above for the failing step.
+              <div className="text-sm font-medium text-red-700">
+                {failed.map((id) => providerConfigs[id].vendor).join(" and ")} failed
               </div>
+              <div className="text-xs text-red-600/80">Review the execution timeline above for the failing step.</div>
             </div>
           </div>
         )}
 
         {showComparison && (
           <>
-            <ResultComparison />
-            <Evaluation />
+            <ResultComparison runs={runs} />
+            <Evaluation scores={active?.evaluations ?? {}} onScore={handleScore} available={evaluable} />
           </>
         )}
       </main>
 
-      <EventDrawer event={selected} onClose={() => setSelected(null)} />
+      <EventDrawer event={selectedEvent} onClose={() => setSelectedEvent(null)} />
     </div>
   )
 }

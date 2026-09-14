@@ -1,29 +1,37 @@
 "use client"
 
-import { useState } from "react"
 import { Play, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ProviderMark } from "./provider-mark"
 import { StatusPill } from "./status-pill"
-import { openaiConfig, claudeConfig, type AgentConfig, type RunStatus } from "@/lib/agent-lab-data"
+import { providerConfigs, providerOrder, type AgentConfig } from "@/lib/agent-lab-data"
+import type { ProviderId } from "@/lib/agent-lab/types"
+
+export interface ProviderAvailability {
+  enabled: boolean
+  model: string
+}
 
 function Toggle({
   checked,
   onChange,
   label,
+  disabled,
 }: {
   checked: boolean
   onChange: (v: boolean) => void
   label: string
+  disabled?: boolean
 }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
-      className="flex items-center gap-2 text-sm font-medium text-foreground"
+      className="flex items-center gap-2 text-sm font-medium text-foreground disabled:cursor-not-allowed disabled:opacity-50"
     >
       <span
         className={cn(
@@ -54,18 +62,21 @@ function ConfigRow({ label, value }: { label: string; value: string }) {
 
 function AgentCard({
   config,
+  availability,
   enabled,
   onToggle,
 }: {
   config: AgentConfig
+  availability?: ProviderAvailability
   enabled: boolean
   onToggle: (v: boolean) => void
 }) {
+  const configured = availability?.enabled ?? false
   return (
     <div
       className={cn(
         "rounded-xl border bg-card p-4 transition-colors",
-        enabled ? "border-border" : "border-dashed border-border opacity-70",
+        enabled && configured ? "border-border" : "border-dashed border-border opacity-70",
       )}
     >
       <div className="flex items-start justify-between">
@@ -76,11 +87,14 @@ function AgentCard({
             <div className="text-sm font-semibold text-foreground">{config.name}</div>
           </div>
         </div>
-        <StatusPill tone="ready" />
+        <StatusPill
+          tone={configured ? "ready" : "failed"}
+          label={configured ? "Ready" : "API key missing"}
+        />
       </div>
 
       <div className="mt-3 border-t border-border pt-2">
-        <ConfigRow label="Model" value={config.model} />
+        <ConfigRow label="Model" value={availability?.model ?? config.model} />
         <ConfigRow label="Environment" value={config.environment} />
       </div>
 
@@ -100,7 +114,8 @@ function AgentCard({
 
       <div className="mt-4 border-t border-border pt-3">
         <Toggle
-          checked={enabled}
+          checked={enabled && configured}
+          disabled={!configured}
           onChange={onToggle}
           label={`Run ${config.vendor === "OpenAI" ? "OpenAI" : "Claude"}`}
         />
@@ -110,30 +125,40 @@ function AgentCard({
 }
 
 export function AgentSetup({
-  status,
+  selected,
+  onSelectedChange,
+  availability,
+  isRunning,
+  canRun,
   onRun,
 }: {
-  status: RunStatus
+  selected: ProviderId[]
+  onSelectedChange: (next: ProviderId[]) => void
+  availability: Partial<Record<ProviderId, ProviderAvailability>>
+  isRunning: boolean
+  canRun: boolean
   onRun: () => void
 }) {
-  const [runOpenAI, setRunOpenAI] = useState(true)
-  const [runClaude, setRunClaude] = useState(true)
-  const isRunning = status === "running"
-  const canRun = runOpenAI || runClaude
+  function toggle(id: ProviderId, on: boolean) {
+    onSelectedChange(on ? [...new Set([...selected, id])] : selected.filter((p) => p !== id))
+  }
+  const label = selected.length === 2 ? "Run both agents" : selected.length === 1 ? `Run ${providerConfigs[selected[0]].vendor}` : "Select an agent"
 
   return (
     <section className="space-y-3">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <AgentCard config={openaiConfig} enabled={runOpenAI} onToggle={setRunOpenAI} />
-        <AgentCard config={claudeConfig} enabled={runClaude} onToggle={setRunClaude} />
+        {providerOrder.map((id) => (
+          <AgentCard
+            key={id}
+            config={providerConfigs[id]}
+            availability={availability[id]}
+            enabled={selected.includes(id)}
+            onToggle={(on) => toggle(id, on)}
+          />
+        ))}
       </div>
 
-      <Button
-        size="lg"
-        onClick={onRun}
-        disabled={!canRun || isRunning}
-        className="h-11 w-full text-sm"
-      >
+      <Button size="lg" onClick={onRun} disabled={!canRun || isRunning} className="h-11 w-full text-sm">
         {isRunning ? (
           <>
             <Loader2 className="size-4 animate-spin" />
@@ -142,7 +167,7 @@ export function AgentSetup({
         ) : (
           <>
             <Play className="size-4" />
-            Run both agents
+            {label}
           </>
         )}
       </Button>

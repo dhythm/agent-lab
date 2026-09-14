@@ -6,7 +6,7 @@ const marks: Record<ProviderId, { className: string; glyph: string }> = {
     className: "bg-zinc-900 text-white border-zinc-900",
     glyph: "O",
   },
-  claude: {
+  anthropic: {
     className: "bg-[#f6efe6] text-[#b0530f] border-[#eaddcb]",
     glyph: "C",
   },
