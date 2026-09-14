@@ -35,10 +35,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AgentLabConfig
     },
     openai: {
       enabled: Boolean(env.OPENAI_API_KEY),
-      model: env.OPENAI_AGENT_MODEL ?? "gpt-6-astra",
+      model: env.OPENAI_AGENT_MODEL ?? "gpt-5.6-sol",
       // List prices are not returned by the Agents API; override via env when they change.
-      inputPricePerMillion: readNumber(env.OPENAI_INPUT_PRICE_PER_MILLION, 10),
-      outputPricePerMillion: readNumber(env.OPENAI_OUTPUT_PRICE_PER_MILLION, 50),
+      inputPricePerMillion: readNumber(env.OPENAI_INPUT_PRICE_PER_MILLION, 4),
+      outputPricePerMillion: readNumber(env.OPENAI_OUTPUT_PRICE_PER_MILLION, 20),
     },
     githubToken: env.GITHUB_TOKEN,
   }

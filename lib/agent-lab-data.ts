@@ -16,7 +16,7 @@ export const providerConfigs: Record<ProviderId, AgentConfig> = {
     id: "openai",
     vendor: "OpenAI",
     name: "Agents API",
-    model: "gpt-6-astra",
+    model: "gpt-5.6-sol",
     environment: "OpenAI-hosted sandbox",
     capabilities: ["Shell", "Files", "Web", "Tools", "Subagents"],
   },
