@@ -13,6 +13,7 @@ pnpm dev
 | 変数 | 用途 |
 | --- | --- |
 | `OPENAI_API_KEY` | OpenAI Agents API (`client.beta.agents.sessions`)。キー権限に `api.agents.read/write` が必要 |
+| `OPENAI_AGENT_MODEL` | 任意。デフォルトは `gpt-5.6-sol` |
 | `ANTHROPIC_API_KEY` | Claude Managed Agents (`client.beta.agents / environments / sessions`) |
 | `GITHUB_TOKEN` | 任意。private リポジトリを clone する場合の fine-grained PAT (Contents: Read) |
 | `AGENT_LAB_MOCK_PROVIDERS` | 任意。`openai,anthropic` を指定すると API を呼ばずに台本化した Timeline を再生する |
