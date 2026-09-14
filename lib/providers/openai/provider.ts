@@ -1,4 +1,5 @@
 import OpenAI from "openai"
+import { readFile } from "node:fs/promises"
 import type {
   AgentProvider,
   ProviderRunHandle,
@@ -8,6 +9,8 @@ import type {
   ProviderUsage,
 } from "@/lib/agent-lab/provider"
 import type { AgentLabConfig } from "@/lib/agent-lab/config"
+import type { FileStore } from "@/lib/agent-lab/files"
+import type { StoredFile } from "@/lib/agent-lab/types"
 import { createActionApplier } from "../shared/apply-actions"
 import { buildTaskPrompt, normalizeRepositoryUrl, repositoryName } from "../shared/task-prompt"
 import { createResultTracker } from "../shared/result-tracker"
@@ -17,6 +20,7 @@ type SessionEvent = OpenAI.Beta.Agents.AgentSessionEvent
 type TokenUsage = OpenAI.Beta.Agents.TokenUsage
 
 const OUTPUT_DIR = "/workspace/outputs"
+const INPUT_DIR = "/workspace/inputs"
 
 export const OPENAI_INSTRUCTIONS = [
   "You are a senior software engineer working inside an isolated sandbox for Agent Lab, a tool that observes how managed agents work.",
@@ -45,8 +49,19 @@ function estimateCost(usage: ProviderUsage | undefined, config: AgentLabConfig):
   return Math.round((input + output) * 10_000) / 10_000
 }
 
-export function createOpenAIProvider(config: AgentLabConfig): AgentProvider {
+export function createOpenAIProvider(config: AgentLabConfig, files: FileStore): AgentProvider {
   const client = new OpenAI()
+
+  async function inlineAttachments(
+    attachments: StoredFile[],
+  ): Promise<OpenAI.Beta.Agents.HostedEnvironmentFileParam[]> {
+    const result: OpenAI.Beta.Agents.HostedEnvironmentFileParam[] = []
+    for (const attachment of attachments) {
+      const data = (await readFile(attachment.storedPath)).toString("base64")
+      result.push({ type: "inline", data, path: `${INPUT_DIR}/${attachment.name}` })
+    }
+    return result
+  }
 
   async function run(
     input: ProviderRunInput,
@@ -56,7 +71,8 @@ export function createOpenAIProvider(config: AgentLabConfig): AgentProvider {
     const { task } = input
     const repository = normalizeRepositoryUrl(task.repository)
     const workspacePath = repository ? `/workspace/${repositoryName(repository)}` : undefined
-    const prompt = buildTaskPrompt(task, { workspacePath, outputDir: OUTPUT_DIR })
+    const prompt = buildTaskPrompt(task, { workspacePath, outputDir: OUTPUT_DIR, inputDir: INPUT_DIR })
+    const inputFiles = await inlineAttachments(task.attachments ?? [])
 
     const normalize = createOpenAINormalizer()
     const apply = createActionApplier(sink)
@@ -115,6 +131,7 @@ export function createOpenAIProvider(config: AgentLabConfig): AgentProvider {
       environment: {
         type: "openai_hosted",
         network: { access: "enabled" },
+        files: inputFiles.length > 0 ? inputFiles : undefined,
         setup_commands: repository
           ? [{ command: cloneCommand(repository, task.branch, config.githubToken), cwd: "/workspace" }]
           : undefined,
@@ -168,23 +185,17 @@ export function createOpenAIProvider(config: AgentLabConfig): AgentProvider {
 
     if (failure) throw failure
 
+    const artifacts: StoredFile[] = []
     if (state.sessionId) {
       try {
         const session = await client.beta.agents.sessions.retrieve(state.sessionId)
         usage = toUsage(session.usage) ?? usage
         for await (const artifact of client.beta.agents.sessions.artifacts.list(state.sessionId)) {
-          tracker.observe([
-            {
-              kind: "append",
-              key: `artifact_${artifact.id}`,
-              event: {
-                type: "file_write",
-                title: artifact.path ?? artifact.id,
-                timestamp: new Date().toISOString(),
-                metadata: { path: artifact.path ?? artifact.id },
-              },
-            },
-          ])
+          const response = await client.beta.agents.sessions.artifacts.content(artifact.id, {
+            session_id: state.sessionId,
+          })
+          const bytes = Buffer.from(await response.arrayBuffer())
+          artifacts.push(await files.saveArtifact(input.runId, artifact.path, bytes))
         }
       } catch (error) {
         console.warn("[openai] post-run lookup failed:", error)
@@ -192,7 +203,7 @@ export function createOpenAIProvider(config: AgentLabConfig): AgentProvider {
     }
 
     return {
-      result: tracker.result(normalize.finalText()),
+      result: { ...tracker.result(normalize.finalText()), artifacts },
       usage,
       costUsd: estimateCost(usage, config),
     }

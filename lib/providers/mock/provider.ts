@@ -5,6 +5,7 @@ import type {
   ProviderRunSink,
 } from "@/lib/agent-lab/provider"
 import type { NewAgentEvent, ProviderId } from "@/lib/agent-lab/types"
+import type { FileStore } from "@/lib/agent-lab/files"
 
 type Step = Omit<NewAgentEvent, "timestamp"> & { delayMs?: number; resultDelayMs?: number; result?: string }
 
@@ -35,7 +36,7 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
  * Replays a scripted timeline with realistic pacing. Used to exercise the UI
  * and API without spending real API credits (AGENT_LAB_MOCK_PROVIDERS).
  */
-export function createMockProvider(id: ProviderId, label: string): AgentProvider {
+export function createMockProvider(id: ProviderId, label: string, files: FileStore): AgentProvider {
   return {
     id,
     label,
@@ -58,8 +59,22 @@ export function createMockProvider(id: ProviderId, label: string): AgentProvider
             })
           }
         }
+        const attachments = input.task.attachments ?? []
+        const artifacts =
+          input.task.type === "coding"
+            ? []
+            : [
+                await files.saveArtifact(
+                  input.runId,
+                  "report.md",
+                  Buffer.from(
+                    `# Mock report (${label})\n\nInputs: ${attachments.map((a) => a.name).join(", ") || "none"}\n\nThis file was produced by the mock provider.\n`,
+                  ),
+                ),
+              ]
         return {
           result: {
+            artifacts,
             summary: "Added a homepage redirect for authenticated users and a regression test; all 13 tests pass.",
             changedFiles: ["src/middleware.ts", "src/middleware.test.ts"],
             testResult: "Passed: 13 passed",

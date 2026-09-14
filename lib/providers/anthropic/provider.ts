@@ -1,4 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk"
+import Anthropic, { toFile } from "@anthropic-ai/sdk"
+import { readFile } from "node:fs/promises"
 import type {
   AgentProvider,
   ProviderRunHandle,
@@ -8,6 +9,8 @@ import type {
   ProviderUsage,
 } from "@/lib/agent-lab/provider"
 import type { AgentLabConfig } from "@/lib/agent-lab/config"
+import type { FileStore } from "@/lib/agent-lab/files"
+import type { StoredFile } from "@/lib/agent-lab/types"
 import { createActionApplier } from "../shared/apply-actions"
 import { buildTaskPrompt, normalizeRepositoryUrl, repositoryName } from "../shared/task-prompt"
 import { createResultTracker } from "../shared/result-tracker"
@@ -18,6 +21,7 @@ type SessionEvent = Anthropic.Beta.Sessions.BetaManagedAgentsSessionEvent
 type StreamEvent = Anthropic.Beta.Sessions.BetaManagedAgentsStreamSessionEvents
 
 const OUTPUT_DIR = "/mnt/session/outputs"
+const INPUT_DIR = "/workspace/inputs"
 const MAX_RECONNECTS = 5
 
 function isPersistedEvent(event: StreamEvent): event is SessionEvent {
@@ -30,8 +34,43 @@ function costFromListCost(listCost: { amount: string; currency: string } | null 
   return Number.isFinite(cents) ? cents / 100 : undefined
 }
 
-export function createAnthropicProvider(config: AgentLabConfig): AgentProvider {
+export function createAnthropicProvider(config: AgentLabConfig, files: FileStore): AgentProvider {
   const client = new Anthropic()
+
+  async function uploadAttachments(
+    attachments: StoredFile[],
+  ): Promise<Anthropic.Beta.Sessions.BetaManagedAgentsFileResourceParams[]> {
+    const resources: Anthropic.Beta.Sessions.BetaManagedAgentsFileResourceParams[] = []
+    for (const attachment of attachments) {
+      const uploaded = await client.beta.files.upload({
+        file: await toFile(await readFile(attachment.storedPath), attachment.name),
+      })
+      resources.push({ type: "file", file_id: uploaded.id, mount_path: `${INPUT_DIR}/${attachment.name}` })
+    }
+    return resources
+  }
+
+  async function collectArtifacts(sessionId: string, runId: string): Promise<StoredFile[]> {
+    const artifacts: StoredFile[] = []
+    // Output files are indexed shortly after the session goes idle; retry briefly.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        for await (const file of client.beta.files.list({
+          scope_id: sessionId,
+          betas: ["managed-agents-2026-04-01"],
+        })) {
+          const response = await client.beta.files.download(file.id)
+          const bytes = Buffer.from(await response.arrayBuffer())
+          artifacts.push(await files.saveArtifact(runId, file.filename, bytes))
+        }
+      } catch (error) {
+        console.warn("[anthropic] artifact listing failed:", error)
+      }
+      if (artifacts.length > 0) break
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+    }
+    return artifacts
+  }
   let resources: Promise<AnthropicResources> | undefined
 
   function getResources(): Promise<AnthropicResources> {
@@ -59,24 +98,28 @@ export function createAnthropicProvider(config: AgentLabConfig): AgentProvider {
     const { agentId, agentVersion, environmentId } = await getResources()
     const repository = normalizeRepositoryUrl(task.repository)
     const workspacePath = repository ? `/workspace/${repositoryName(repository)}` : undefined
-    const prompt = buildTaskPrompt(task, { workspacePath, outputDir: OUTPUT_DIR })
+    const prompt = buildTaskPrompt(task, { workspacePath, outputDir: OUTPUT_DIR, inputDir: INPUT_DIR })
+    const fileResources = await uploadAttachments(task.attachments ?? [])
 
     const session = await client.beta.sessions.create({
       agent: { type: "agent", id: agentId, version: agentVersion },
       environment_id: environmentId,
       title: task.title.slice(0, 120),
       metadata: { agent_lab_run_id: input.runId, task_type: task.type },
-      resources: repository
-        ? [
-            {
-              type: "github_repository",
-              url: repository,
-              mount_path: workspacePath,
-              ...(config.githubToken ? { authorization_token: config.githubToken } : {}),
-              ...(task.branch ? { checkout: { type: "branch", name: task.branch } } : {}),
-            },
-          ]
-        : undefined,
+      resources: [
+        ...(repository
+          ? [
+              {
+                type: "github_repository" as const,
+                url: repository,
+                mount_path: workspacePath,
+                ...(config.githubToken ? { authorization_token: config.githubToken } : {}),
+                ...(task.branch ? { checkout: { type: "branch" as const, name: task.branch } } : {}),
+              },
+            ]
+          : []),
+        ...fileResources,
+      ],
       initial_events: [{ type: "user.message", content: [{ type: "text", text: prompt }] }],
     })
     state.sessionId = session.id
@@ -176,8 +219,9 @@ export function createAnthropicProvider(config: AgentLabConfig): AgentProvider {
       usage.outputTokens = sessionUsage.output_tokens ?? usage.outputTokens
     }
 
+    const artifacts = await collectArtifacts(session.id, input.runId)
     return {
-      result: tracker.result(normalize.finalText()),
+      result: { ...tracker.result(normalize.finalText()), artifacts },
       usage,
       costUsd,
     }
