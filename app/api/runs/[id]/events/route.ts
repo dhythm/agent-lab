@@ -1,5 +1,6 @@
 import { getService } from "@/lib/agent-lab/service"
 import type { RunMessage } from "@/lib/agent-lab/run-store"
+import { toPublicRun } from "@/lib/agent-lab/public"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -23,8 +24,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       const send = (message: RunMessage) => {
+        const payload = message.kind === "run" ? { kind: "run", run: toPublicRun(message.run) } : message
         try {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(message)}\n\n`))
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`))
         } catch {
           // Stream already closed by the client.
         }
