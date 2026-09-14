@@ -25,11 +25,26 @@ AGENT_LAB_MOCK_PROVIDERS=openai,anthropic pnpm dev
 
 ## 使い方
 
-1. Task / Repository (`owner/repo` または URL) / Branch / Task type を入力
+1. プリセットを選ぶか、Task / Repository (`owner/repo` または URL、任意) / Branch / Task type を入力し、必要ならファイルを添付
 2. 実行する Agent を選択 (片方だけでも可)
 3. Run を押すと各 Agent が独立に実行され、Timeline がリアルタイムに更新される
 4. 各ステップをクリックするとコマンド・ファイル・差分・出力を確認できる
 5. 完了後に Result comparison と Evaluation (1〜5) が表示される。History から過去の Run を再表示できる
+
+### タスクのパターン (プリセット)
+
+GitHub リポジトリが無くても試せるよう、添付ファイル付きのプリセットを用意しています (サンプルは `public/samples/`)。
+
+| プリセット | 種別 | 観察できること |
+| --- | --- | --- |
+| Coding: auth redirect | coding | リポジトリ探索、編集、テスト実行、リトライ |
+| Data: CSV anomaly analysis | data | ファイル読み込み、コード実行、異常値抽出、`analysis.md` / グラフの生成 |
+| Data: customer list cleansing | data | 表記ゆれの正規化、JSON Schema バリデーション、判断ログ |
+| Research: hosting comparison | research | Web 検索、情報収集、比較表付きレポート生成 |
+| Document: meeting notes → summary | general | 文書理解、決定事項 / アクション抽出 |
+| Coding: self-contained kata | coding | リポジトリ無しでの実装 + テスト。成果物は出力ディレクトリに保存 |
+
+添付ファイルはサンドボックスの `/workspace/inputs/` に配置されます。Agent が出力ディレクトリ (Anthropic: `/mnt/session/outputs`、OpenAI: `/workspace/outputs`) に書いたファイルは Run 完了後に取得され、Result から ダウンロードできます。
 
 ## 仕組み
 
@@ -47,6 +62,7 @@ Browser ── SSE (/api/runs/:id/events) ──▶ Next.js Route Handlers
 - **Metrics** (`lib/agent-lab/metrics.ts`): Duration / Steps / Tool calls / Files changed / Retries / Tokens / Estimated cost をイベントから集計
 - **Anthropic**: Environment と Agent は初回に一度だけ作成し `.agent-lab/anthropic-resources.json` に ID をキャッシュ。Run ごとに Session を作成し、`github_repository` リソースで repo をマウント、SSE + 履歴 list で取りこぼしなく購読、Stop は `user.interrupt`。コストは Session の `usage.list_cost` から取得
 - **OpenAI**: Run ごとに `openai_hosted` 環境で Session を作成し、`setup_commands` で `git clone`。`agent.session.turn.item.added/done` を Timeline に変換、Stop は `agent.session.input.cancel`。API がコストを返さないため、トークン数 × 単価 (env で上書き可) で推定
+- **ファイル**: 添付は `.agent-lab/uploads/<taskId>/`、成果物は `.agent-lab/artifacts/<runId>/` に保存し、API からはファイル名とサイズだけを返す
 - **保存**: Tasks / Runs / Events / Metrics / Evaluations を `.agent-lab/runs/*.json` に保存 (DB へは `RunStore` インタフェースの差し替えで移行可能)
 
 ## 開発
