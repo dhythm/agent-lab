@@ -67,6 +67,23 @@ describe("computeMetrics", () => {
     expect(metrics.toolCalls).toBe(4)
   })
 
+  it("counts produced artifacts as changed files without double counting", () => {
+    const metrics = computeMetrics(
+      run([event({ type: "file_write", metadata: { path: "/mnt/session/outputs/report.md" } })], {
+        result: {
+          summary: "",
+          changedFiles: [],
+          finalOutput: "",
+          artifacts: [
+            { name: "report.md", size: 1, storedPath: "/x/report.md" },
+            { name: "chart.png", size: 1, storedPath: "/x/chart.png" },
+          ],
+        },
+      }),
+    )
+    expect(metrics.filesChanged).toBe(2)
+  })
+
   it("derives duration from startedAt and completedAt", () => {
     const metrics = computeMetrics(
       run([], {

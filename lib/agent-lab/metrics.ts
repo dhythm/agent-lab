@@ -64,6 +64,11 @@ export function computeMetrics(run: AgentRun): AgentMetrics {
       if (typeof filePath === "string" && filePath) changed.add(filePath)
     }
   }
+  for (const artifact of run.result?.artifacts ?? []) {
+    if (![...changed].some((p) => p.endsWith(`/${artifact.name}`) || p === artifact.name)) {
+      changed.add(artifact.name)
+    }
+  }
   return {
     durationMs: durationMs(run),
     steps: events.length,
