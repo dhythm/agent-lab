@@ -13,7 +13,7 @@ import { findPreset } from "@/lib/agent-lab/presets"
 import { AgentSetup, type ProviderAvailability } from "@/components/agent-lab/agent-setup"
 import { AgentColumn } from "@/components/agent-lab/agent-column"
 import { ResultComparison } from "@/components/agent-lab/result-comparison"
-import { Evaluation, EMPTY_SCORE } from "@/components/agent-lab/evaluation"
+import { Evaluation, EMPTY_SCORE, isComplete } from "@/components/agent-lab/evaluation"
 import { EventDrawer } from "@/components/agent-lab/event-drawer"
 import { useRunStream } from "@/hooks/use-run-stream"
 import { providerConfigs, providerOrder, type EvaluationKey } from "@/lib/agent-lab-data"
@@ -27,6 +27,7 @@ interface ActiveTask {
   runIds: Partial<Record<ProviderId, string>>
   initialRuns: Partial<Record<ProviderId, AgentRun>>
   evaluations: Partial<Record<ProviderId, EvaluationScore>>
+  savedEvaluations: Partial<Record<ProviderId, boolean>>
 }
 
 async function readError(response: Response): Promise<string> {
@@ -107,7 +108,7 @@ export default function Page() {
       const body = (await response.json()) as { task: AgentTask; runs: { id: string; provider: ProviderId }[] }
       const runIds: Partial<Record<ProviderId, string>> = {}
       for (const run of body.runs) runIds[run.provider] = run.id
-      setActive({ task: body.task, runIds, initialRuns: {}, evaluations: {} })
+      setActive({ task: body.task, runIds, initialRuns: {}, evaluations: {}, savedEvaluations: {} })
       window.history.replaceState(null, "", `?task=${body.task.id}`)
       void refreshHistory()
     } catch (e) {
@@ -132,10 +133,14 @@ export default function Page() {
       const runIds: Partial<Record<ProviderId, string>> = {}
       const initialRuns: Partial<Record<ProviderId, AgentRun>> = {}
       const evaluations: Partial<Record<ProviderId, EvaluationScore>> = {}
+      const savedEvaluations: Partial<Record<ProviderId, boolean>> = {}
       for (const run of record.runs) {
         runIds[run.provider] = run.id
         initialRuns[run.provider] = run
-        if (record.evaluations[run.id]) evaluations[run.provider] = record.evaluations[run.id]
+        if (record.evaluations[run.id]) {
+          evaluations[run.provider] = record.evaluations[run.id]
+          savedEvaluations[run.provider] = true
+        }
       }
       setForm({
         task: record.task.prompt,
@@ -145,7 +150,7 @@ export default function Page() {
         files: [],
       })
       setSelected(record.runs.map((r) => r.provider))
-      setActive({ task: record.task, runIds, initialRuns, evaluations })
+      setActive({ task: record.task, runIds, initialRuns, evaluations, savedEvaluations })
       window.history.replaceState(null, "", `?task=${record.task.id}`)
       setError(undefined)
     } catch (e) {
@@ -190,14 +195,26 @@ export default function Page() {
     const runId = active.runIds[provider]
     if (!runId) return
     const next: EvaluationScore = { ...(active.evaluations[provider] ?? EMPTY_SCORE), [key]: value }
-    setActive({ ...active, evaluations: { ...active.evaluations, [provider]: next } })
-    if (Object.values(next).some((v) => v === 0)) return // save once every criterion is scored
+    setActive((current) =>
+      current && {
+        ...current,
+        evaluations: { ...current.evaluations, [provider]: next },
+        savedEvaluations: { ...current.savedEvaluations, [provider]: false },
+      },
+    )
+    if (!isComplete(next)) return // saved automatically once every criterion is scored
     const response = await fetch(`/api/runs/${runId}/evaluation`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(next),
     })
-    if (!response.ok) setError(await readError(response))
+    if (!response.ok) {
+      setError(await readError(response))
+      return
+    }
+    setActive((current) =>
+      current && { ...current, savedEvaluations: { ...current.savedEvaluations, [provider]: true } },
+    )
   }
 
   const failed = providerOrder.filter((id) => runs[id]?.status === "failed")
@@ -276,7 +293,12 @@ export default function Page() {
         {showComparison && (
           <>
             <ResultComparison runs={runs} />
-            <Evaluation scores={active?.evaluations ?? {}} onScore={handleScore} available={evaluable} />
+            <Evaluation
+              scores={active?.evaluations ?? {}}
+              onScore={handleScore}
+              available={evaluable}
+              saved={active?.savedEvaluations ?? {}}
+            />
           </>
         )}
       </main>
