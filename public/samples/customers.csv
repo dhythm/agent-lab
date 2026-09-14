@@ -1,0 +1,11 @@
+customer_id,company,contact_name,email,phone,postal_code,prefecture,plan,signed_up
+C001,株式会社アルファ,山田 太郎,Taro.Yamada@alpha.co.jp ,03-1234-5678,100-0001,東京都,Pro,2025/04/01
+C002,アルファ（株）,山田太郎,taro.yamada@alpha.co.jp,０３１２３４５６７８,1000001,東京,pro,2025-04-01
+C003,ベータ合同会社,佐藤 花子,hanako@beta.example,06-9876-5432,530-0001,大阪府,Standard,2025-05-12
+C004,ベータ合同会社様,佐藤　花子,HANAKO@BETA.EXAMPLE,06 9876 5432,５３０−０００１,大阪府,standard,2025-05-12
+C005,Gamma Inc.,John Smith,john@gamma.io,+81-90-1111-2222,,,Enterprise,2025-06-30
+C006,ガンマ株式会社,鈴木 一郎,ichiro.suzuki@gamma.io,090-3333-4444,460-0008,愛知県,Enterprise,2025-07-15
+C007,デルタ商事,高橋 次郎,jiro@delta,080-5555-6666,812-0011,福岡県,Standard,2025-08-01
+C008,,田中 三郎,saburo@epsilon.example,011-777-8888,060-0001,北海道,Pro,2025-08-20
+C009,イプシロン株式会社,田中 三郎,saburo@epsilon.example,011-777-8888,060-0001,北海道,Pro,2025-08-20
+C010,ゼータ株式会社,渡辺 四郎,shiro@zeta.example,03-2222-3333,150-0001,東京都,Premium,31/09/2025

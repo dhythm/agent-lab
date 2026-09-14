@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Customers",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["customer_ids", "company", "contact_name", "email", "phone", "plan", "signed_up"],
+    "properties": {
+      "customer_ids": { "type": "array", "items": { "type": "string", "pattern": "^C[0-9]{3}$" }, "minItems": 1 },
+      "company": { "type": "string", "minLength": 1 },
+      "contact_name": { "type": "string", "minLength": 1 },
+      "email": { "type": "string", "format": "email" },
+      "phone": { "type": "string", "pattern": "^\\+81-[0-9]{1,4}-[0-9]{1,4}-[0-9]{4}$" },
+      "postal_code": { "type": ["string", "null"], "pattern": "^[0-9]{3}-[0-9]{4}$" },
+      "prefecture": { "type": ["string", "null"] },
+      "plan": { "type": "string", "enum": ["standard", "pro", "enterprise"] },
+      "signed_up": { "type": "string", "format": "date" }
+    }
+  }
+}
