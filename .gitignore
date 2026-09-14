@@ -30,3 +30,6 @@ next-env.d.ts
 /tasks/
 
 .DS_Store
+
+# agent lab local data (runs, cached agent/environment ids)
+/.agent-lab/
