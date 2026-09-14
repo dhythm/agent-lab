@@ -14,6 +14,8 @@ export function repositoryName(url: string): string {
 export interface TaskPromptOptions {
   workspacePath?: string
   outputDir?: string
+  /** Directory where task attachments are mounted inside the sandbox. */
+  inputDir?: string
 }
 
 const TYPE_GUIDANCE: Record<AgentTask["type"], string> = {
@@ -35,9 +37,18 @@ export function buildTaskPrompt(task: AgentTask, options: TaskPromptOptions): st
     const where = options.workspacePath ?? `/workspace/${repositoryName(repository)}`
     lines.push(`Repository: ${repository} (checked out at ${where}${task.branch ? `, branch ${task.branch}` : ""})`)
   }
+  const attachments = task.attachments ?? []
+  if (attachments.length > 0) {
+    const inputDir = options.inputDir ?? "/workspace/inputs"
+    lines.push(`Input files: ${attachments.map((a) => `${inputDir}/${a.name}`).join(", ")}`)
+  }
   lines.push(TYPE_GUIDANCE[task.type])
-  if (options.outputDir && task.type !== "coding") {
-    lines.push(`Save any files you produce under ${options.outputDir}.`)
+  if (options.outputDir) {
+    lines.push(
+      task.type === "coding"
+        ? `If you produce files outside the repository, save them under ${options.outputDir}.`
+        : `Save every file you produce (reports, cleaned data, charts) under ${options.outputDir}.`,
+    )
   }
   lines.push("When you are done, reply with a concise summary of what you changed and the test results.")
   return lines.join("\n")

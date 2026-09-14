@@ -24,6 +24,13 @@ export type AgentEventType =
   | "success"
   | "final_output"
 
+export interface StoredFile {
+  name: string
+  size: number
+  /** Absolute path on the Agent Lab server. Never sent to the browser. */
+  storedPath: string
+}
+
 export interface AgentTask {
   id: string
   title: string
@@ -31,6 +38,7 @@ export interface AgentTask {
   type: TaskType
   repository?: string
   branch?: string
+  attachments?: StoredFile[]
   createdAt: string
 }
 
@@ -62,6 +70,8 @@ export interface AgentResult {
   changedFiles: string[]
   testResult?: string
   finalOutput: string
+  /** Files the agent produced in its output directory, copied to the server. */
+  artifacts?: StoredFile[]
 }
 
 export interface AgentRun {

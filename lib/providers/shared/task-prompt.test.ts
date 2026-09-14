@@ -43,6 +43,19 @@ describe("buildTaskPrompt", () => {
     expect(buildTaskPrompt(base, {})).toMatch(/run the existing tests/i)
   })
 
+  it("lists attachments with their mounted paths", () => {
+    const text = buildTaskPrompt(
+      {
+        ...base,
+        type: "data",
+        attachments: [{ name: "sales.csv", size: 10, storedPath: "/tmp/x" }],
+      },
+      { inputDir: "/workspace/inputs", outputDir: "/workspace/outputs" },
+    )
+    expect(text).toContain("/workspace/inputs/sales.csv")
+    expect(text).toContain("/workspace/outputs")
+  })
+
   it("asks for a report file for research tasks", () => {
     expect(buildTaskPrompt({ ...base, type: "research" }, { outputDir: "/mnt/session/outputs" })).toContain(
       "/mnt/session/outputs",
