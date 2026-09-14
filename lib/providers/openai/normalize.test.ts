@@ -107,6 +107,16 @@ describe("openai normalizer", () => {
     expect(again[1]).toMatchObject({ event: { type: "test" } })
   })
 
+  it("unwraps bash -lc wrappers and honours a failed status without exit code", () => {
+    const normalize = createOpenAINormalizer({ now: () => now })
+    const [added] = normalize(itemAdded(command("w1", "/bin/bash -lc 'cat README.md'")))
+    expect(added).toMatchObject({ event: { type: "file_read", title: "cat README.md", metadata: { command: "cat README.md" } } })
+    const [done] = normalize(
+      itemDone(command("w1", "/bin/bash -lc 'cat README.md'", { status: "failed", output: "No such file" })),
+    )
+    expect(done).toMatchObject({ kind: "update", patch: { metadata: { status: "failed", exitCode: null } } })
+  })
+
   it("maps apply_patch commands to file_write with paths", () => {
     const normalize = createOpenAINormalizer({ now: () => now })
     const body = "apply_patch <<'EOF'\n*** Begin Patch\n*** Update File: src/a.ts\n*** End Patch\nEOF"

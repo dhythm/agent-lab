@@ -1,6 +1,6 @@
 import type OpenAI from "openai"
 import type { AgentEventType, NewAgentEvent } from "@/lib/agent-lab/types"
-import { classifyCommand, parsePatchPaths } from "../shared/classify-command"
+import { classifyCommand, parsePatchPaths, unwrapShellCommand } from "../shared/classify-command"
 import {
   looksLikeFailure,
   truncate,
@@ -35,21 +35,22 @@ function commandMapping(item: CommandItem): {
   title: string
   metadata: Record<string, unknown>
 } {
-  const type = classifyCommand(item.command)
+  const command = unwrapShellCommand(item.command)
+  const type = classifyCommand(command)
   const metadata: Record<string, unknown> = {
-    command: item.command,
+    command,
     cwd: item.cwd,
     status: item.status,
   }
   if (type === "file_write") {
-    const paths = parsePatchPaths(item.command)
+    const paths = parsePatchPaths(command)
     return {
       type,
       title: paths[0] ?? "apply_patch",
       metadata: { ...metadata, path: paths[0], paths },
     }
   }
-  return { type, title: truncate(item.command), metadata }
+  return { type, title: truncate(command), metadata }
 }
 
 export function createOpenAINormalizer(options: OpenAINormalizerOptions = {}): OpenAINormalizer {
@@ -80,6 +81,7 @@ export function createOpenAINormalizer(options: OpenAINormalizerOptions = {}): O
   function commandDonePatch(item: CommandItem): EventPatch {
     const mapped = commandMapping(item)
     const failed =
+      item.status === "failed" ||
       (item.exit_code !== null && item.exit_code !== 0) ||
       (mapped.type === "test" && looksLikeFailure(item.output))
     if (mapped.type === "test") lastTestFailed = failed

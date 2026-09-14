@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { classifyCommand, isTestCommand, parsePatchPaths } from "./classify-command"
+import { classifyCommand, isTestCommand, parsePatchPaths, unwrapShellCommand } from "./classify-command"
 
 describe("isTestCommand", () => {
   it.each([
@@ -73,5 +73,22 @@ describe("parsePatchPaths", () => {
 
   it("returns an empty list when nothing matches", () => {
     expect(parsePatchPaths("echo hi")).toEqual([])
+  })
+})
+
+describe("unwrapShellCommand", () => {
+  it("removes bash -lc wrappers and outer quotes", () => {
+    expect(unwrapShellCommand("/bin/bash -lc 'ls -la /workspace'")).toBe("ls -la /workspace")
+    expect(unwrapShellCommand('/bin/bash -lc "pwd && rg --files -g \\"x\\""')).toBe('pwd && rg --files -g "x"')
+    expect(unwrapShellCommand("bash -c \"pnpm test\"")).toBe("pnpm test")
+  })
+
+  it("leaves plain commands untouched", () => {
+    expect(unwrapShellCommand("  git status ")).toBe("git status")
+  })
+
+  it("classifies through the wrapper", () => {
+    expect(classifyCommand("/bin/bash -lc 'pnpm test'")).toBe("test")
+    expect(classifyCommand("/bin/bash -lc \"cat README.md\"")).toBe("file_read")
   })
 })
