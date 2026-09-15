@@ -83,6 +83,8 @@ Browser ── SSE (/api/runs/:id/events) ──▶ Next.js Route Handlers
 
 ## 開発
 
+`next dev` は Orchestrator / Provider のインスタンスを hot reload をまたいで保持します (実行中の Run を落とさないため)。Provider や Service の配線を変えたら `pnpm dev` を再起動してください。再起動しないと古い配線のまま Run が走ります。
+
 ```bash
 pnpm test        # vitest
 pnpm typecheck   # tsc --noEmit

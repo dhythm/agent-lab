@@ -22,6 +22,9 @@ type StreamEvent = Anthropic.Beta.Sessions.BetaManagedAgentsStreamSessionEvents
 
 const OUTPUT_DIR = "/mnt/session/outputs"
 const INPUT_DIR = "/workspace/inputs"
+// Observed in real sessions: file resources mounted at `/workspace/inputs/x` appear inside the
+// sandbox under /mnt/session/uploads, so the prompt must name that path or the agent goes hunting.
+const INPUT_DIR_IN_SANDBOX = `/mnt/session/uploads${INPUT_DIR}`
 const MAX_RECONNECTS = 5
 
 function isPersistedEvent(event: StreamEvent): event is SessionEvent {
@@ -39,18 +42,20 @@ export function createAnthropicProvider(config: AgentLabConfig, files: FileStore
 
   async function uploadAttachments(
     attachments: StoredFile[],
+    uploadedIds: Set<string>,
   ): Promise<Anthropic.Beta.Sessions.BetaManagedAgentsFileResourceParams[]> {
     const resources: Anthropic.Beta.Sessions.BetaManagedAgentsFileResourceParams[] = []
     for (const attachment of attachments) {
       const uploaded = await client.beta.files.upload({
         file: await toFile(await readFile(attachment.storedPath), attachment.name),
       })
+      uploadedIds.add(uploaded.id)
       resources.push({ type: "file", file_id: uploaded.id, mount_path: `${INPUT_DIR}/${attachment.name}` })
     }
     return resources
   }
 
-  async function collectArtifacts(sessionId: string, runId: string): Promise<StoredFile[]> {
+  async function collectArtifacts(sessionId: string, runId: string, uploadedIds: Set<string>): Promise<StoredFile[]> {
     const artifacts: StoredFile[] = []
     // Output files are indexed shortly after the session goes idle; retry briefly.
     for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -59,9 +64,15 @@ export function createAnthropicProvider(config: AgentLabConfig, files: FileStore
           scope_id: sessionId,
           betas: ["managed-agents-2026-04-01"],
         })) {
-          const response = await client.beta.files.download(file.id)
-          const bytes = Buffer.from(await response.arrayBuffer())
-          artifacts.push(await files.saveArtifact(runId, file.filename, bytes))
+          // The session listing also returns the inputs we uploaded; those are not downloadable.
+          if (uploadedIds.has(file.id)) continue
+          try {
+            const response = await client.beta.files.download(file.id)
+            const bytes = Buffer.from(await response.arrayBuffer())
+            artifacts.push(await files.saveArtifact(runId, file.filename, bytes))
+          } catch (error) {
+            console.warn(`[anthropic] skipping artifact ${file.filename} (${file.id}):`, error instanceof Error ? error.message : error)
+          }
         }
       } catch (error) {
         console.warn("[anthropic] artifact listing failed:", error)
@@ -98,8 +109,9 @@ export function createAnthropicProvider(config: AgentLabConfig, files: FileStore
     const { agentId, agentVersion, environmentId } = await getResources()
     const repository = normalizeRepositoryUrl(task.repository)
     const workspacePath = repository ? `/workspace/${repositoryName(repository)}` : undefined
-    const prompt = buildTaskPrompt(task, { workspacePath, outputDir: OUTPUT_DIR, inputDir: INPUT_DIR })
-    const fileResources = await uploadAttachments(task.attachments ?? [])
+    const prompt = buildTaskPrompt(task, { workspacePath, outputDir: OUTPUT_DIR, inputDir: INPUT_DIR_IN_SANDBOX })
+    const uploadedIds = new Set<string>()
+    const fileResources = await uploadAttachments(task.attachments ?? [], uploadedIds)
 
     const session = await client.beta.sessions.create({
       agent: { type: "agent", id: agentId, version: agentVersion },
@@ -219,7 +231,7 @@ export function createAnthropicProvider(config: AgentLabConfig, files: FileStore
       usage.outputTokens = sessionUsage.output_tokens ?? usage.outputTokens
     }
 
-    const artifacts = await collectArtifacts(session.id, input.runId)
+    const artifacts = await collectArtifacts(session.id, input.runId, uploadedIds)
     return {
       result: { ...tracker.result(normalize.finalText()), artifacts },
       usage,
