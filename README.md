@@ -48,6 +48,21 @@ GitHub リポジトリが無くても試せるよう、添付ファイル付き�
 
 添付ファイルはサンドボックスの `/workspace/inputs/` に配置されます。Agent が出力ディレクトリ (Anthropic: `/mnt/session/outputs`、OpenAI: `/workspace/outputs`) に書いたファイルは Run 完了後に取得され、Result から ダウンロードできます。
 
+### 記事本文の生成 (テンプレート + 入力 → JSON)
+
+記事構成 (outline) から本文を生成する工程は、サンドボックス型の Agent ではなく **固定の system テンプレート + 構造化出力** で実装しています (`lib/article-writer/`)。system は `{{seoKeywords}}` などの変数を埋めたテンプレート、ユーザーメッセージは `<direction> <title> <chapters> <references>` で区切った入力、出力は `ARTICLE_RESPONSE_JSON_SCHEMA` に一致する JSON です。
+
+```bash
+curl -s -X POST http://localhost:3000/api/article \
+  -H 'content-type: application/json' \
+  -d @public/samples/article-writer/request.example.json | jq '.article.contents[0]'
+```
+
+- `input` には outline (`outline.schema.json` 形式) をそのまま渡すか、`chapters` / `references` をテキストで渡す
+- `provider` は `anthropic` (Messages API, `output_config.format` json_schema, system を prompt cache) または `openai` (Responses API, `text.format` json_schema strict)
+- 応答は `{ article, attempts, usage, lengthReport, provider }`。JSON がスキーマに合わない場合は違反箇所を返して 1 回だけ再試行する
+- `lengthReport` は章・節ごとの targetCharCount と実文字数 (URL 除外) の比較
+
 ## 仕組み
 
 ```

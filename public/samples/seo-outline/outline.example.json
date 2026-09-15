@@ -1,0 +1,174 @@
+{
+  "validationId": "a0c6dc8d2f4fadc4",
+  "direction": "読者はAI評価に初めて触れる一般読者と実務担当者。目的は「AI評価はなぜ難しいか」に答え、倫理を測る基準と評価体制の構成を理解できるようにすること。中学生でも分かる平易な文体。全体 5000〜6000 字。基礎的な定義・概念整理は一般知識で補足してよいが、数値・事例・制度・製品の具体情報は references に限定する。",
+  "chapters": [
+    {
+      "id": "c1",
+      "title": "この記事のまとめ",
+      "evidence_type": "generic_only_ok",
+      "targetCharCount": 280,
+      "overview": "AI評価が難しい理由、倫理を測る基準の考え方、評価体制の構成を要約する。",
+      "cautions": [],
+      "sections": []
+    },
+    {
+      "id": "c2",
+      "title": "AI評価が難しい理由",
+      "evidence_type": "crawl_required",
+      "targetCharCount": 1700,
+      "overview": "倫理原則を測る指標が分野ごとに分散していること、主観的な倫理基準にはラベル付きデータが乏しいことを説明する。",
+      "cautions": [
+        "データセットの数値は2011〜2023年のコンピューティング文献257本に基づく点を保持する。"
+      ],
+      "sections": [
+        {
+          "id": "s1",
+          "title": "倫理原則と測定指標の分散",
+          "targetCharCount": 850,
+          "overview": "11の倫理原則と791指標の分布から、公平性に偏っている現状を示す。",
+          "cautions": []
+        },
+        {
+          "id": "s2",
+          "title": "主観的な基準と評価データの不足",
+          "targetCharCount": 850,
+          "overview": "MITの研究が指摘する、倫理基準のラベル付きデータ不足と静的評価の限界を説明する。",
+          "cautions": [
+            "SEED-SETの成果はテスト環境での結果であり、ユーザー調査は今後の予定である。"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "倫理を測る基準の作り方",
+      "evidence_type": "crawl_required",
+      "targetCharCount": 1500,
+      "overview": "ルーブリック・基準・キャリブレーションの考え方と、中核基準と機能固有基準の優先順位を説明する。",
+      "cautions": [],
+      "sections": [
+        {
+          "id": "s3",
+          "title": "ルーブリックと基準の設計",
+          "targetCharCount": 750,
+          "overview": "評価・ルーブリック・基準の定義と、基準を1つの概念に分解する方法。",
+          "cautions": []
+        },
+        {
+          "id": "s4",
+          "title": "評価者の認識合わせ",
+          "targetCharCount": 750,
+          "overview": "キャリブレーションによる評価の一貫性確保。",
+          "cautions": []
+        }
+      ]
+    },
+    {
+      "id": "c4",
+      "title": "自動評価と人による評価の組み合わせ",
+      "evidence_type": "crawl_required",
+      "targetCharCount": 1300,
+      "overview": "ASUの倫理的AIエンジンを例に、自動評価と人による評価の二層構成と継続監視を説明する。",
+      "cautions": [
+        "ASUの事例は高等教育向けであり、他分野への一般化はしない。"
+      ],
+      "sections": []
+    },
+    {
+      "id": "c5",
+      "title": "評価体制の構成と監督",
+      "evidence_type": "crawl_required",
+      "targetCharCount": 1000,
+      "overview": "人間による監督、定期監査、影響評価の標準 (JIS Q 42005) など体制面の構成要素を整理する。",
+      "cautions": [
+        "ABVEガイドラインは法医学的職業評価の文脈である点を明記する。"
+      ],
+      "sections": []
+    }
+  ],
+  "references": [
+    {
+      "id": "r1",
+      "chapterId": "c2",
+      "sectionId": "s1",
+      "title": "責任あるAI測定データセット",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12722731/",
+      "excerpt": "指標の45.0%は公平性を対象とし、透明性が20.5%、プライバシーが14.0%、信頼が10.3%と続きました。この4原則で全指標のおよそ90%を占めています。",
+      "intendedUse": "指標が公平性に偏っていることの根拠"
+    },
+    {
+      "id": "r2",
+      "chapterId": "c2",
+      "sectionId": "s1",
+      "title": "責任あるAI測定データセット",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12722731/",
+      "excerpt": "このデータセットは、11の倫理原則を対象とする791の評価指標について、12,067件のデータポイントを統合したものです。2011年から2023年の間に発表されたコンピューティング文献257本から抽出されました。",
+      "intendedUse": "データセットの対象と時点"
+    },
+    {
+      "id": "r3",
+      "chapterId": "c2",
+      "sectionId": "s2",
+      "title": "AIによる意思決定の倫理評価",
+      "url": "https://news.mit.edu/2026/evaluating-autonomous-systems-ethics-0402",
+      "excerpt": "ほとんどのテストフレームワークは事前に収集されたデータに依存していますが、主観的な倫理基準に関するラベル付きデータは、入手が難しいことがよくあります。さらに、倫理的価値観とAIシステムはどちらも常に変化しているため、記述された規範や規制文書に基づく静的な評価手法は、頻繁な更新を必要とします。",
+      "intendedUse": "評価データ不足と静的評価の限界"
+    },
+    {
+      "id": "r4",
+      "chapterId": "c3",
+      "sectionId": "s3",
+      "title": "AI評価における倫理的な構成・基準・設計・ガイド",
+      "url": "https://uxcontent.com/ai-evaluation-content-design/",
+      "excerpt": "評価：\nルーブリックまたは一般的なガイドラインに照らして出力を評価するプロセスです。\n\nルーブリック：\n出力の品質を評価するために使用する基準の集合です。\n\n基準：\nルーブリック内の質問または記述です。",
+      "intendedUse": "評価・ルーブリック・基準の定義"
+    },
+    {
+      "id": "r5",
+      "chapterId": "c3",
+      "sectionId": "s4",
+      "title": "AI評価における倫理的な構成・基準・設計・ガイド",
+      "url": "https://uxcontent.com/ai-evaluation-content-design/",
+      "excerpt": "認識をそろえる方法の1つが、キャリブレーションを実施することです。2人のレビュアーが同じ出力を少数（5件または10件）評価し、異なる回答について話し合い、合意に達します。キャリブレーションは、認識のずれを最小限に抑え、個人の偏りを減らし、評価全体の一貫性を高めるのに役立ちます。",
+      "intendedUse": "キャリブレーションの手順"
+    },
+    {
+      "id": "r6",
+      "chapterId": "c4",
+      "sectionId": null,
+      "title": "誠実さを備えたAI：ASUのAIアクセラレーションチームが倫理的AIの新たな基準を設定",
+      "url": "https://ai.asu.edu/technical-foundation/articles-and-documentation/ai-integrity-asus-ai-acceleration-team-setting-new-standards-ethical-ai",
+      "excerpt": "自動評価：このプロセスでは、AIを活用したテストにより、正確性、公平性、偏り、堅牢性、効率性などの主要な側面についてモデルを採点します。各モデルには0から1までのスコアが付けられ、問題のある領域がさらなる検討のために示されます。\n\n人による評価：構造化されたワークフローにより、AIモデルが技術的に健全であるだけでなく、実際の学術環境で実用的かつ効果的であることを確認します。",
+      "intendedUse": "二層構成の内容"
+    },
+    {
+      "id": "r7",
+      "chapterId": "c5",
+      "sectionId": null,
+      "title": "法医学的職業評価における倫理的なAI利用のガイドライン",
+      "url": "https://www.abve.net/ai-guidelines",
+      "excerpt": "AIツールが科学的厳密性と業界のベストプラクティスに引き続き適合することを確保するための定期監査。評価者は、AIツールを毎年、またはモデルが更新されるたびに監査し、公平性、透明性、有害な偏見がないことの証拠を記録することが推奨されます。",
+      "intendedUse": "定期監査の頻度と記録"
+    },
+    {
+      "id": "r8",
+      "chapterId": "c5",
+      "sectionId": null,
+      "title": "評価の物差しと、現場の使い道",
+      "url": "https://coplus-one.jp/jis-ai-impact-assessment-standard/",
+      "excerpt": "JIS Q 42005はAIシステム単体の影響評価の手法を定めたもので、評価を行うタイミングや範囲、責任の割当て、実施と記録・報告、承認、その後のモニタリングまでを扱います。附属書Eにはカスタマイズして使えるテンプレート例も収録されています。もう1件のJIS Q 42006は、AIマネジメントシステムの審査・認証機関に求められる事項を定めたもので、審査員が備えるべきAI技術・アルゴリズム・データ品質・倫理的影響評価の知識を明文化しました。",
+      "intendedUse": "影響評価の国内標準の内容"
+    }
+  ],
+  "coverage_check": {
+    "adoptedSlots": [
+      "背景・課題",
+      "定義・前提",
+      "手順・進め方",
+      "全体像・仕組み",
+      "事例・データ"
+    ],
+    "missingSlots": [],
+    "crawlRequiredRatio": 0.8
+  }
+}
