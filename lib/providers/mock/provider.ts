@@ -6,6 +6,7 @@ import type {
 } from "@/lib/agent-lab/provider"
 import type { NewAgentEvent, ProviderId } from "@/lib/agent-lab/types"
 import type { FileStore } from "@/lib/agent-lab/files"
+import { mockArticleFromPrompt } from "@/lib/providers/article/mock-article"
 
 type Step = Omit<NewAgentEvent, "timestamp"> & { delayMs?: number; resultDelayMs?: number; result?: string }
 
@@ -63,6 +64,8 @@ export function createMockProvider(id: ProviderId, label: string, files: FileSto
         const artifacts =
           input.task.type === "coding"
             ? []
+            : input.task.type === "article"
+            ? [await files.saveArtifact(input.runId, "article.json", Buffer.from(JSON.stringify(mockArticleFromPrompt(input.task.prompt), null, 2)))]
             : [
                 await files.saveArtifact(
                   input.runId,

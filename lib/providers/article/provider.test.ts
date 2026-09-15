@@ -3,10 +3,10 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { beforeEach, describe, expect, it } from "vitest"
 import { createFileStore, type FileStore } from "@/lib/agent-lab/files"
-import type { AgentProvider, ProviderRunSink, ProviderRunHandle } from "@/lib/agent-lab/provider"
+import type { AgentProvider, ProviderRunHandle, ProviderRunInput, ProviderRunOutcome, ProviderRunSink } from "@/lib/agent-lab/provider"
 import type { AgentEvent, AgentTask, NewAgentEvent } from "@/lib/agent-lab/types"
-import type { CompletionRequest, StructuredCompleter } from "@/lib/article-writer/write-article"
-import { createArticleProvider, readArticleInput } from "./provider"
+import { ARTICLE_TASK_TEMPLATE } from "@/lib/article-writer/template"
+import { createArticleProvider, readArticleInput, renderArticleTask } from "./provider"
 
 const article = {
   title: "タイトル",
@@ -26,21 +26,6 @@ const articleInput = {
   references: "[1] 資料",
 }
 
-function fakeCompleter(replies: string[]): StructuredCompleter & { requests: CompletionRequest[] } {
-  const requests: CompletionRequest[] = []
-  return {
-    id: "openai",
-    model: "fake",
-    requests,
-    async complete(request) {
-      requests.push(request)
-      const text = replies.shift()
-      if (text === undefined) throw new Error("no replies left")
-      return { text, usage: { inputTokens: 100, outputTokens: 50, cachedInputTokens: 10 } }
-    },
-  }
-}
-
 function fakeSink() {
   const events: AgentEvent[] = []
   let n = 0
@@ -52,7 +37,7 @@ function fakeSink() {
     },
     async updateEvent(id, patch) {
       const idx = events.findIndex((e) => e.id === id)
-      events[idx] = { ...events[idx], ...patch, metadata: { ...events[idx].metadata, ...patch.metadata } }
+      events[idx] = { ...events[idx], ...patch }
       return events[idx]
     },
     async setExternalId() {},
@@ -60,12 +45,28 @@ function fakeSink() {
   return { sink, events }
 }
 
-const base: AgentProvider = {
-  id: "openai",
-  label: "base",
-  async startRun(): Promise<ProviderRunHandle> {
-    return { done: Promise.resolve({ result: { summary: "base", changedFiles: [], finalOutput: "base" } }), async cancel() {} }
-  },
+interface FakeBase extends AgentProvider {
+  received: ProviderRunInput[]
+  cancelled: boolean
+}
+
+function fakeBase(files: FileStore, produce: (input: ProviderRunInput) => Promise<Partial<ProviderRunOutcome["result"]>>): FakeBase {
+  const base: FakeBase = {
+    id: "openai",
+    label: "base",
+    received: [],
+    cancelled: false,
+    async startRun(input): Promise<ProviderRunHandle> {
+      base.received.push(input)
+      const done = (async (): Promise<ProviderRunOutcome> => {
+        const partial = await produce(input)
+        return { result: { summary: "base summary", changedFiles: [], finalOutput: "base output", ...partial }, usage: { inputTokens: 5, outputTokens: 7 } }
+      })()
+      return { done, async cancel() { base.cancelled = true } }
+    },
+  }
+  void files
+  return base
 }
 
 let files: FileStore
@@ -76,22 +77,15 @@ beforeEach(async () => {
   files = createFileStore(dir)
 })
 
-async function taskWithInput(input: unknown): Promise<AgentTask> {
+async function articleTask(input: unknown, prompt = ARTICLE_TASK_TEMPLATE): Promise<AgentTask> {
   const stored = path.join(dir, "article-input.json")
   await writeFile(stored, JSON.stringify(input))
-  return {
-    id: "task",
-    title: "t",
-    prompt: "記事本文を生成してください。",
-    type: "article",
-    attachments: [{ name: "article-input.json", size: 1, storedPath: stored }],
-    createdAt: new Date().toISOString(),
-  }
+  return { id: "task", title: "t", prompt, type: "article", attachments: [{ name: "article-input.json", size: 1, storedPath: stored }], createdAt: "" }
 }
 
 describe("readArticleInput", () => {
   it("reads the input from the JSON attachment, accepting the outline form", async () => {
-    const task = await taskWithInput({
+    const task = await articleTask({
       title: "T",
       seoKeywords: "a,b",
       outline: {
@@ -105,79 +99,101 @@ describe("readArticleInput", () => {
     expect(input.references).toContain("[1] x")
   })
 
-  it("falls back to the task prompt when it is JSON and there is no attachment", async () => {
-    const task: AgentTask = { id: "t", title: "t", prompt: JSON.stringify(articleInput), type: "article", createdAt: "" }
-    expect((await readArticleInput(task)).title).toBe("タイトル")
-  })
-
-  it("explains what is missing when no input can be found", async () => {
-    const task: AgentTask = { id: "t", title: "t", prompt: "free text", type: "article", createdAt: "" }
+  it("explains what is missing when there is no JSON attachment", async () => {
+    const task: AgentTask = { id: "t", title: "t", prompt: "x", type: "article", createdAt: "" }
     await expect(readArticleInput(task)).rejects.toThrow(/article-input\.json/)
   })
 })
 
-describe("createArticleProvider", () => {
-  it("delegates non-article tasks to the wrapped provider", async () => {
-    const provider = createArticleProvider(base, () => fakeCompleter([]), files)
-    const { sink } = fakeSink()
-    const handle = await provider.startRun({ runId: "run", task: { ...(await taskWithInput(articleInput)), type: "coding" } }, sink)
-    expect((await handle.done).result.summary).toBe("base")
+describe("renderArticleTask", () => {
+  it("fills every placeholder of the task template from the input", () => {
+    const rendered = renderArticleTask(ARTICLE_TASK_TEMPLATE, articleInput)
+    expect(rendered).toContain("「AI,評価,倫理,構成」を扱う専門ライター")
+    expect(rendered).toContain("「AI,評価,倫理」における「構成」")
+    expect(rendered).toContain("文体：「です・ます調」")
+    expect(rendered).toContain("### タイトル:\nタイトル\n")
+    expect(rendered).toContain("H2 [c2] 章 (targetCharCount: 500)")
+    expect(rendered).not.toMatch(/\{\{/)
   })
 
-  it("runs the structured-output flow, records the timeline and saves article.json", async () => {
-    const completer = fakeCompleter([JSON.stringify(article)])
-    const provider = createArticleProvider(base, () => completer, files)
+  it("rejects placeholders the input cannot fill", () => {
+    expect(() => renderArticleTask("{{ title }} {{ unknownThing }}", articleInput)).toThrow(/unknownThing/)
+  })
+})
+
+describe("createArticleProvider", () => {
+  it("delegates non-article tasks to the wrapped provider unchanged", async () => {
+    const base = fakeBase(files, async () => ({}))
+    const provider = createArticleProvider(base, files)
+    const task = { ...(await articleTask(articleInput)), type: "coding" as const }
+    const handle = await provider.startRun({ runId: "run", task }, fakeSink().sink)
+    expect((await handle.done).result.summary).toBe("base summary")
+    expect(base.received[0].task.prompt).toBe(task.prompt)
+  })
+
+  it("sends the rendered template plus the output instruction to the agent and validates article.json", async () => {
+    const base = fakeBase(files, async (input) => ({
+      artifacts: [await files.saveArtifact(input.runId, "article.json", Buffer.from(JSON.stringify(article)))],
+    }))
+    const provider = createArticleProvider(base, files)
     const { sink, events } = fakeSink()
-    const handle = await provider.startRun({ runId: "run", task: await taskWithInput(articleInput) }, sink)
+    const handle = await provider.startRun({ runId: "run", task: await articleTask(articleInput) }, sink)
     const outcome = await handle.done
 
-    expect(events.map((e) => e.type)).toEqual(["planning", "tool_call", "file_write", "success"])
-    expect(events[1].metadata?.status).toBe("completed")
-    expect(outcome.result.artifacts?.map((a) => a.name)).toEqual(["article.json"])
-    expect(outcome.result.changedFiles).toEqual(["article.json"])
-    expect(outcome.usage).toEqual({ inputTokens: 100, outputTokens: 50, cachedInputTokens: 10 })
-    expect(outcome.result.finalOutput).toContain("この記事のまとめ")
+    const sent = base.received[0].task.prompt
+    expect(sent).toContain("### タイトル:\nタイトル\n")
+    expect(sent).not.toMatch(/\{\{/)
+    expect(sent).toContain("article.json")
+    expect(sent).toContain('"contents"')
+    expect(events.map((e) => e.type)).toEqual(["planning", "success"])
+    expect(events[1].detail).toContain("この記事のまとめ")
+    expect(outcome.result.testResult).toMatch(/passed/)
     expect(outcome.result.summary).toMatch(/2 chapters/)
+    expect(outcome.result.changedFiles).toContain("article.json")
+    expect(outcome.usage).toEqual({ inputTokens: 5, outputTokens: 7 })
   })
 
-  it("shows the retry in the timeline when the first reply is invalid", async () => {
-    const completer = fakeCompleter(["{broken", JSON.stringify(article)])
-    const provider = createArticleProvider(base, () => completer, files)
-    const { sink, events } = fakeSink()
-    const handle = await provider.startRun({ runId: "run", task: await taskWithInput(articleInput) }, sink)
-    await handle.done
-    const types = events.map((e) => e.type)
-    expect(types).toEqual(["planning", "tool_call", "retry", "tool_call", "file_write", "success"])
-    expect(events[2].detail).toMatch(/Invalid JSON/)
-    expect(events[1].metadata?.status).toBe("failed")
+  it("falls back to the final output when the agent returned the JSON as its answer", async () => {
+    const base = fakeBase(files, async () => ({ finalOutput: "```json\n" + JSON.stringify(article) + "\n```" }))
+    const provider = createArticleProvider(base, files)
+    const { sink } = fakeSink()
+    const handle = await provider.startRun({ runId: "run", task: await articleTask(articleInput) }, sink)
+    const outcome = await handle.done
+    expect(outcome.result.testResult).toMatch(/passed/)
+    expect(outcome.result.artifacts?.map((a) => a.name)).toEqual(["article.json"])
   })
 
-  it("fails the run with a clear error when the input attachment is invalid", async () => {
-    const provider = createArticleProvider(base, () => fakeCompleter([]), files)
+  it("keeps the run but flags the schema violations when the JSON is invalid", async () => {
+    const base = fakeBase(files, async (input) => ({
+      artifacts: [await files.saveArtifact(input.runId, "article.json", Buffer.from('{"title": 1}'))],
+    }))
+    const provider = createArticleProvider(base, files)
     const { sink, events } = fakeSink()
-    const handle = await provider.startRun({ runId: "run", task: await taskWithInput({ title: "only" }) }, sink)
+    const handle = await provider.startRun({ runId: "run", task: await articleTask(articleInput) }, sink)
+    const outcome = await handle.done
+    expect(events.map((e) => e.type)).toEqual(["planning", "warning"])
+    expect(events[1].detail).toMatch(/title/)
+    expect(outcome.result.testResult).toMatch(/failed/)
+  })
+
+  it("fails before calling the agent when the input cannot fill the template", async () => {
+    const base = fakeBase(files, async () => ({}))
+    const provider = createArticleProvider(base, files)
+    const { sink, events } = fakeSink()
+    const handle = await provider.startRun({ runId: "run", task: await articleTask({ title: "only" }) }, sink)
     await expect(handle.done).rejects.toThrow(/seoKeywords/)
     expect(events.some((e) => e.type === "error")).toBe(true)
+    expect(base.received).toHaveLength(0)
   })
 
-  it("passes the abort signal so cancel stops the request", async () => {
-    let seen: AbortSignal | undefined
-    const completer: StructuredCompleter = {
-      id: "openai",
-      model: "fake",
-      async complete(request) {
-        seen = request.signal
-        return new Promise((_, reject) => {
-          if (request.signal?.aborted) return reject(new Error("aborted"))
-          request.signal?.addEventListener("abort", () => reject(new Error("aborted")))
-        })
-      },
-    }
-    const provider = createArticleProvider(base, () => completer, files)
-    const { sink } = fakeSink()
-    const handle = await provider.startRun({ runId: "run", task: await taskWithInput(articleInput) }, sink)
+  it("forwards cancel to the wrapped provider", async () => {
+    let release: () => void = () => {}
+    const base = fakeBase(files, () => new Promise((resolve) => { release = () => resolve({}) }))
+    const provider = createArticleProvider(base, files)
+    const handle = await provider.startRun({ runId: "run", task: await articleTask(articleInput) }, fakeSink().sink)
     await handle.cancel()
-    await expect(handle.done).rejects.toThrow(/aborted/)
-    expect(seen?.aborted).toBe(true)
+    expect(base.cancelled).toBe(true)
+    release()
+    await handle.done
   })
 })

@@ -10,8 +10,12 @@ export const runtime = "nodejs"
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
 const MAX_ATTACHMENTS = 10
 
+// Multipart text fields arrive with CRLF line endings; keep prompts LF-only so templates and
+// line-based parsing behave the same whether the task came from the UI or from JSON.
+const lineEndings = (value: string) => value.replace(/\r\n?/g, "\n")
+
 const createSchema = z.object({
-  task: z.string().trim().min(1).max(20_000),
+  task: z.string().transform(lineEndings).pipe(z.string().trim().min(1).max(20_000)),
   repository: z.string().trim().max(500).optional(),
   branch: z.string().trim().max(200).optional(),
   type: z.enum(["coding", "research", "data", "general", "article"]).default("coding"),

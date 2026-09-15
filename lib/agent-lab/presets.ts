@@ -1,4 +1,5 @@
 import type { TaskType } from "./types"
+import { ARTICLE_TASK_TEMPLATE } from "@/lib/article-writer/template"
 
 export interface TaskPreset {
   id: string
@@ -84,10 +85,9 @@ export const taskPresets: TaskPreset[] = [
   {
     id: "content-seo-article",
     label: "Content: SEO article body (template → JSON)",
-    description: "Fixed writer template + outline input → schema-typed article JSON via structured output",
+    description: "Task text is the writer prompt with {{variables}}; the JSON attachment fills them, the agent writes article.json",
     type: "article",
-    prompt:
-      "添付の article-input.json (タイトル・SEO キーワード・記事構成 outline) を入力として、固定の WEB ライター用 system テンプレートで記事本文を生成し、指定スキーマの JSON (title / contents[].heading / paragraphs / sections) を返してください。この種別はサンドボックスを使わず、構造化出力付きの 1 回の呼び出しで実行されます。",
+    prompt: ARTICLE_TASK_TEMPLATE,
     samples: [{ name: "article-input.json", url: "/samples/article-writer/article-input.json" }],
   },
 ]

@@ -1,9 +1,4 @@
-/**
- * System prompt template for the article writer. Placeholders use `{{name}}`.
- * The template text is fixed so it can be cached as a stable prefix; only the
- * variables and the user message change between runs.
- */
-export const ARTICLE_SYSTEM_TEMPLATE = `## 役割（Role）
+## 役割（Role）
 - あなたは優秀なWEBライターです。
 - 「{{seoKeywords}}」を扱う専門ライターとして、提供された参照情報だけを根拠に、読者が学べるSEO記事を書いてください。
 
@@ -210,9 +205,11 @@ export const ARTICLE_SYSTEM_TEMPLATE = `## 役割（Role）
 - 接続詞や述語の言い換えによって、参照情報にない因果関係や強い断定を作っていない。
 
 【文字数】
-- 原則として各章・節が targetCharCount を下回らず、上限は targetCharCount+50%程度に収まっている。ただし、参照情報だけでは満たせない場合は、根拠のない説明や同内容の言い換えで埋めず、下回ってよい。`
+- 原則として各章・節が targetCharCount を下回らず、上限は targetCharCount+50%程度に収まっている。ただし、参照情報だけでは満たせない場合は、根拠のない説明や同内容の言い換えで埋めず、下回ってよい。
 
-export const ARTICLE_USER_TEMPLATE = `## 入力文:
+---
+
+## 入力文:
 ### 記事の方向性
 {{ direction }}
 
@@ -226,55 +223,4 @@ export const ARTICLE_USER_TEMPLATE = `## 入力文:
 {{ chapters }}
 
 ### 選択されたクローリング記事（タイトル、内容、リンク）:
-{{ references }}`
-
-/** The whole prompt as it appears in the Task field: system part, separator, user part. */
-export const ARTICLE_TASK_TEMPLATE = `${ARTICLE_SYSTEM_TEMPLATE}
-
----
-
-${ARTICLE_USER_TEMPLATE}`
-
-export interface ArticleTemplateVariables {
-  seoKeywords: string
-  coreKeyword: string
-  topicKeyword: string
-  /** Defaults to "です・ます調". */
-  writingStyle?: string
-  /** Optional blocks; rendered as empty strings when omitted. */
-  writingRequirement?: string
-  dateAwareInstruction?: string
-  introAndOutroInstruction?: string
-  instructionForReference?: string
-}
-
-const REQUIRED_VARIABLES = ["seoKeywords", "coreKeyword", "topicKeyword"] as const
-
-export function renderTemplate(template: string, variables: Record<string, string | undefined>): string {
-  return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, name: string) => {
-    const value = variables[name]
-    if (value === undefined) throw new Error(`Template variable "${name}" has no value`)
-    return value
-  })
-}
-
-/** Applies the defaults for optional blocks and checks the required variables. */
-export function templateVariables(variables: ArticleTemplateVariables): Record<string, string> {
-  for (const name of REQUIRED_VARIABLES) {
-    if (!variables[name]?.trim()) throw new Error(`Template variable "${name}" is required`)
-  }
-  return {
-    seoKeywords: variables.seoKeywords,
-    coreKeyword: variables.coreKeyword,
-    topicKeyword: variables.topicKeyword,
-    writingStyle: variables.writingStyle?.trim() || "です・ます調",
-    writingRequirement: variables.writingRequirement ?? "",
-    dateAwareInstruction: variables.dateAwareInstruction ?? "",
-    introAndOutroInstruction: variables.introAndOutroInstruction ?? "",
-    instructionForReference: variables.instructionForReference ?? "",
-  }
-}
-
-export function renderSystemPrompt(variables: ArticleTemplateVariables): string {
-  return renderTemplate(ARTICLE_SYSTEM_TEMPLATE, templateVariables(variables))
-}
+{{ references }}
