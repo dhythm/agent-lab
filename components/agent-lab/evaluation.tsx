@@ -1,6 +1,7 @@
 "use client"
 
-import { Check } from "lucide-react"
+import { useState } from "react"
+import { Check, Star } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { evaluationCriteria, providerConfigs, providerOrder, type EvaluationKey } from "@/lib/agent-lab-data"
 import type { EvaluationScore, ProviderId } from "@/lib/agent-lab/types"
@@ -17,36 +18,50 @@ export const EMPTY_SCORE: EvaluationScore = {
 
 const SCALE = [1, 2, 3, 4, 5]
 
-function ScoreButtons({
+function StarRating({
   score,
-  tone,
   onChange,
   disabled,
 }: {
   score: number
-  tone: ProviderId
   onChange: (score: number) => void
   disabled?: boolean
 }) {
-  const active = tone === "openai" ? "bg-zinc-900 text-white border-zinc-900" : "bg-[#c2711f] text-white border-[#c2711f]"
+  const [hover, setHover] = useState(0)
+  const shown = hover || score
   return (
-    <div className="flex items-center gap-1" role="radiogroup">
-      {SCALE.map((n) => (
-        <button
-          key={n}
-          type="button"
-          role="radio"
-          aria-checked={score === n}
-          disabled={disabled}
-          onClick={() => onChange(n)}
-          className={cn(
-            "size-7 rounded-md border text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40",
-            n <= score ? active : "border-border bg-background text-muted-foreground hover:bg-muted",
-          )}
-        >
-          {n}
-        </button>
-      ))}
+    <div
+      className="flex items-center gap-2"
+      role="radiogroup"
+      onMouseLeave={() => setHover(0)}
+    >
+      <div className="flex items-center gap-0.5">
+        {SCALE.map((n) => (
+          <button
+            key={n}
+            type="button"
+            role="radio"
+            aria-checked={score === n}
+            aria-label={`${n}`}
+            disabled={disabled}
+            onMouseEnter={() => setHover(n)}
+            onFocus={() => setHover(n)}
+            onBlur={() => setHover(0)}
+            onClick={() => onChange(n)}
+            className="rounded p-0.5 transition-transform hover:scale-110 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Star
+              className={cn(
+                "size-5 transition-colors",
+                n <= shown ? "fill-amber-400 text-amber-400" : "fill-transparent text-zinc-300",
+              )}
+            />
+          </button>
+        ))}
+      </div>
+      <span className="w-4 text-right font-mono text-xs tabular-nums text-muted-foreground">
+        {score || "–"}
+      </span>
     </div>
   )
 }
@@ -97,10 +112,9 @@ export function Evaluation({
             <div key={row.key} className="grid grid-cols-[minmax(120px,1fr)_auto_auto] items-center gap-x-8 gap-y-2">
               <span className="text-sm text-foreground">{row.label}</span>
               {providerOrder.map((id) => (
-                <ScoreButtons
+                <StarRating
                   key={id}
                   score={scores[id]?.[row.key] ?? 0}
-                  tone={id}
                   disabled={!available.includes(id)}
                   onChange={(value) => onScore(id, row.key, value)}
                 />
