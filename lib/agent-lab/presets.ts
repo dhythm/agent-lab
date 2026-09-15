@@ -67,6 +67,20 @@ export const taskPresets: TaskPreset[] = [
     prompt:
       "TypeScript で CSV を集計する CLI ツールを新規に作成してください。要件: `csvsum <file> --group-by <col> --sum <col>` でグループごとの合計を表形式で出力する。ヘッダー行の有無、引用符付きフィールド、空セルに対応すること。vitest でユニットテストを書き、すべて通ることを確認してください。プロジェクト一式を /workspace/outputs/csvsum に保存してください。",
   },
+  {
+    id: "content-seo-outline",
+    label: "Content: SEO article outline",
+    description: "Design an article outline with verbatim source excerpts, validated by a CLI in the sandbox",
+    type: "general",
+    prompt:
+      "添付の instructions.md に従い、input.json のタイトル・キーワード・クローリング記事 (reportResources) から SEO 記事の構成を outline.schema.json の形式で作成し、作業ディレクトリに outline.json として保存してください。保存後は必ず `node /workspace/inputs/validate-outline.mjs outline.json /workspace/inputs/input.json` で検証し、status が pass になるまで violations に示された不一致だけを修正して再実行してください (warnings は自動補正されるため配分修正のための再出力は不要)。pass したら `--submit <出力ディレクトリ>/outline.json` で提出し、validationId・章数・参照件数・総文字数・警告の要点を報告してください。記事本文は書かないでください。",
+    samples: [
+      { name: "instructions.md", url: "/samples/seo-outline/instructions.md" },
+      { name: "input.json", url: "/samples/seo-outline/input.json" },
+      { name: "outline.schema.json", url: "/samples/seo-outline/outline.schema.json" },
+      { name: "validate-outline.mjs", url: "/samples/seo-outline/validate-outline.mjs" },
+    ],
+  },
 ]
 
 export function findPreset(id: string): TaskPreset | undefined {
