@@ -214,7 +214,7 @@
 
 ## 入力文:
 ### 記事の方向性
-読者はAI評価に初めて触れる一般読者と実務担当者。目的は「AI評価はなぜ難しいか」に答え、倫理を測る基準と評価体制の構成を理解できるようにすること。中学生でも分かる平易な文体。全体 5000〜6000 字。基礎的な定義・概念整理は一般知識で補足してよいが、数値・事例・制度・製品の具体情報は references に限定する。
+読者は、AIの倫理面をどう評価すればよいか悩む企業担当者・教育機関担当者・評価実務者。目的は、AI評価が難しい理由を理解し、倫理を測る基準（指標・ルーブリック）と、評価を回す体制の構成要素を具体的に把握できるようにすること。中学生でも読める平易な文体で、前提→具体の順に説明する。全体5000〜6000字（見出し・URL・タグを除く、章と節で二重計上しない）。広く定着した定義・用語説明・概念整理は一般知識で補ってよいが、数値・調査結果・制度条件・個別事例・製品仕様は提供された参照情報の範囲に限定し、主体・時点・条件・確実性を保持する。効果や推薦を創作しない。
 
 ### SEOキーワード:
 AI」「評価」「倫理」「構成
@@ -223,42 +223,79 @@ AI」「評価」「倫理」「構成
 AI評価はなぜ難しい？倫理を測る基準と体制の構成を解く
 
 ### 章立てと目安となる文字数:
-H2 [c1] この記事のまとめ (targetCharCount: 280)
-H2 [c2] AI評価が難しい理由 (targetCharCount: 0)
-  H3 [s1] 倫理原則と測定指標の分散 (targetCharCount: 850)
-  H3 [s2] 主観的な基準と評価データの不足 (targetCharCount: 850)
-H2 [c3] 倫理を測る基準の作り方 (targetCharCount: 0)
-  H3 [s3] ルーブリックと基準の設計 (targetCharCount: 750)
-  H3 [s4] 評価者の認識合わせ (targetCharCount: 750)
-H2 [c4] 自動評価と人による評価の組み合わせ (targetCharCount: 1300)
-H2 [c5] 評価体制の構成と監督 (targetCharCount: 1000)
+H2 [1] この記事のまとめ (targetCharCount: 275)
+H2 [2] AI評価が難しい理由 (targetCharCount: 0)
+  H3 [1] 抽象的な倫理原則と測定のずれ (targetCharCount: 550)
+  H3 [2] 指標の分断と変化する評価対象 (targetCharCount: 550)
+H2 [3] 倫理を測る基準の構成 (targetCharCount: 0)
+  H3 [1] 原則と指標の対応づけ (targetCharCount: 450)
+  H3 [2] 評価ルーブリックと基準の粒度 (targetCharCount: 450)
+  H3 [3] 想定する害の種類と評価対象 (targetCharCount: 400)
+  H3 [4] 定量評価だけでは足りない領域 (targetCharCount: 400)
+H2 [4] 評価プロセスの構成 (targetCharCount: 0)
+  H3 [1] 自動評価と人による評価の二層 (targetCharCount: 500)
+  H3 [2] 導入後の継続的監視 (targetCharCount: 400)
+  H3 [3] 倫理的ジレンマを見つけるシナリオ設計 (targetCharCount: 450)
+H2 [5] 評価を支える体制の構成 (targetCharCount: 0)
+  H3 [1] 役割分担と関与する段階 (targetCharCount: 450)
+  H3 [2] 人間による監督と説明責任 (targetCharCount: 450)
+  H3 [3] 規格・定期監査による裏づけ (targetCharCount: 450)
+H2 [6] 評価設計でつまずきやすい点 (targetCharCount: 700)
 
 ### 選択されたクローリング記事（タイトル、内容、リンク）:
-[1] 責任あるAI測定データセット
-chapterId: c2, sectionId: s1
+[1] pmc.ncbi.nlm.nih.gov
+chapterId: 2, sectionId: 1
 url: https://pmc.ncbi.nlm.nih.gov/articles/PMC12722731/
-intendedUse: 指標が公平性に偏っていることの根拠
+intendedUse: 抽象的な原則を実務用の詳細な指標へ落とし込む必要があること
 excerpt:
-指標の45.0%は公平性を対象とし、透明性が20.5%、プライバシーが14.0%、信頼が10.3%と続きました。この4原則で全指標のおよそ90%を占めています。
+高レベルの取り組みは政策や社会的認識を導くうえで有用ですが、実務者には、実際の運用でAIシステムをこれらの原則に照らして評価するための、より詳細な指標が必要です。そのため、コンピューティング研究コミュニティでは、AIシステムがこれらの原則をどのように守っているかを実務者が評価できる指標を開発する動きが広がっています。
 
-[2] 責任あるAI測定データセット
-chapterId: c2, sectionId: s1
+[2] pmc.ncbi.nlm.nih.gov
+chapterId: 2, sectionId: 2
 url: https://pmc.ncbi.nlm.nih.gov/articles/PMC12722731/
-intendedUse: データセットの対象と時点
+intendedUse: 指標が分断されている課題
 excerpt:
-このデータセットは、11の倫理原則を対象とする791の評価指標について、12,067件のデータポイントを統合したものです。2011年から2023年の間に発表されたコンピューティング文献257本から抽出されました。
+しかし、現在の測定結果の報告は、原則ごとに分かれていたり、範囲が限定されていたり、出版プラットフォームに分散していたりするため、コンピューティング領域が自らの実践を批判する能力を妨げています。
 
-[3] AIによる意思決定の倫理評価
-chapterId: c2, sectionId: s2
+[3] news.mit.edu
+chapterId: 2, sectionId: 2
 url: https://news.mit.edu/2026/evaluating-autonomous-systems-ethics-0402
-intendedUse: 評価データ不足と静的評価の限界
+intendedUse: 主観的基準のデータ不足と、静的評価が陳腐化する難しさ
 excerpt:
 ほとんどのテストフレームワークは事前に収集されたデータに依存していますが、主観的な倫理基準に関するラベル付きデータは、入手が難しいことがよくあります。さらに、倫理的価値観とAIシステムはどちらも常に変化しているため、記述された規範や規制文書に基づく静的な評価手法は、頻繁な更新を必要とします。
 
-[4] AI評価における倫理的な構成・基準・設計・ガイド
-chapterId: c3, sectionId: s3
+[4] pmc.ncbi.nlm.nih.gov
+chapterId: 2, sectionId: 2
+url: https://pmc.ncbi.nlm.nih.gov/articles/PMC12722731/
+intendedUse: 既存の指標整理にも収録範囲の限界がある点
+excerpt:
+責任あるAIの分野は急速に発展しており、データの抽出中にも新しい測定が継続的に登場していました。包括性を目指しましたが、最近の貢献の一部が収録されていない可能性があります。また、コンピューティング研究に焦点を当てたため、政策、社会科学、その他の分野の専門家が提案した指標が十分に反映されていない可能性があります。
+
+[5] pmc.ncbi.nlm.nih.gov
+chapterId: 3, sectionId: 1
+url: https://pmc.ncbi.nlm.nih.gov/articles/PMC12722731/
+intendedUse: 原則と指標を整理したデータセットの規模と対象範囲
+excerpt:
+このデータセットは、11の倫理原則を対象とする791の評価指標について、12,067件のデータポイントを統合したものです。2011年から2023年の間に発表されたコンピューティング文献257本から抽出されました。
+
+[6] pmc.ncbi.nlm.nih.gov
+chapterId: 3, sectionId: 1
+url: https://pmc.ncbi.nlm.nih.gov/articles/PMC12722731/
+intendedUse: 11原則の具体的な内容
+excerpt:
+対象とした倫理原則は、公平性、透明性、信頼、プライバシー、無危害、有益性、責任、自由と自律性、持続可能性、連帯、尊厳の11原則です。
+
+[7] pmc.ncbi.nlm.nih.gov
+chapterId: 3, sectionId: 1
+url: https://pmc.ncbi.nlm.nih.gov/articles/PMC12722731/
+intendedUse: 指標が一部の原則に偏っていること
+excerpt:
+指標の45.0%は公平性を対象とし、透明性が20.5%、プライバシーが14.0%、信頼が10.3%と続きました。この4原則で全指標のおよそ90%を占めています。
+
+[8] uxcontent.com
+chapterId: 3, sectionId: 2
 url: https://uxcontent.com/ai-evaluation-content-design/
-intendedUse: 評価・ルーブリック・基準の定義
+intendedUse: 評価・ルーブリック・基準という用語の定義
 excerpt:
 評価：
 ルーブリックまたは一般的なガイドラインに照らして出力を評価するプロセスです。
@@ -269,32 +306,181 @@ excerpt:
 基準：
 ルーブリック内の質問または記述です。
 
-[5] AI評価における倫理的な構成・基準・設計・ガイド
-chapterId: c3, sectionId: s4
+[9] uxcontent.com
+chapterId: 3, sectionId: 2
 url: https://uxcontent.com/ai-evaluation-content-design/
-intendedUse: キャリブレーションの手順
+intendedUse: 中核基準と機能固有基準の区別
 excerpt:
-認識をそろえる方法の1つが、キャリブレーションを実施することです。2人のレビュアーが同じ出力を少数（5件または10件）評価し、異なる回答について話し合い、合意に達します。キャリブレーションは、認識のずれを最小限に抑え、個人の偏りを減らし、評価全体の一貫性を高めるのに役立ちます。
+中核：
+あらゆる状況に適用される基本的な基準です（例：有害性、文法、正確性など）。
 
-[6] 誠実さを備えたAI：ASUのAIアクセラレーションチームが倫理的AIの新たな基準を設定
-chapterId: c4, sectionId: -
+機能固有：
+各プロジェクトに固有の、文脈に基づく基準で、通常はコンテンツのスタイルを中心とします（例：声、文体、読みやすさなど）。
+
+[10] uxcontent.com
+chapterId: 3, sectionId: 2
+url: https://uxcontent.com/ai-evaluation-content-design/
+intendedUse: 基準の粒度を1概念にする設計指針
+excerpt:
+分解する：
+各基準は、1つの概念にとどめるようにしてください。「このコンテンツは適切ですか？」は主観的で、多くの異なる事柄を指す可能性があります。この質問は、「出力は一人称単数の文体を使っていますか？」という、より客観的な質問に分解できます。
+
+[11] pmc.ncbi.nlm.nih.gov
+chapterId: 3, sectionId: 3
+url: https://pmc.ncbi.nlm.nih.gov/articles/PMC12722731/
+intendedUse: 社会技術的な害の5分類とその定義
+excerpt:
+害の種類は、配分上の害、表象上の害、サービス品質上の害、対人的な害、社会システム上の害の5種類に分類しました。配分上の害は、AIシステムによる、またはAIシステムが支援する意思決定による経済的損失や機会の損失を含みます。表象上の害は、不公正な社会的階層やステレオタイプの強化を反映します。サービス品質上の害は、アイデンティティ集団間のシステム性能の格差を捉えます。
+
+[12] pmc.ncbi.nlm.nih.gov
+chapterId: 3, sectionId: 3
+url: https://pmc.ncbi.nlm.nih.gov/articles/PMC12722731/
+intendedUse: 評価対象となるAIシステムの構成要素の切り分け
+excerpt:
+AIシステムの構成要素は、入力データ、モデル、出力、ユーザーとの相互作用、システム全体の5カテゴリーです。
+
+[13] pmc.ncbi.nlm.nih.gov
+chapterId: 3, sectionId: 4
+url: https://pmc.ncbi.nlm.nih.gov/articles/PMC12722731/
+intendedUse: 原則により必要な評価の種類が異なること
+excerpt:
+数学的・統計的評価を含む定量的評価が、データセットに収録された測定の大部分を占めていました。一方、信頼では、行動的評価と自己報告による評価が大きな割合を占めていました。
+
+[14] uxcontent.com
+chapterId: 3, sectionId: 4
+url: https://uxcontent.com/ai-evaluation-content-design/
+intendedUse: 定量指標と定性的評価の目的の違い
+excerpt:
+この記事で説明する評価は、パープレキシティ（予測能力を測定する）やF1スコア（適合率と再現率を計算する）など、従来の定量的なLLM指標とは異なる点に注意してください。これらの定量的指標は通常、特定のタスクにおける性能を追跡し、モデル開発の指針とするために使用されます。
+
+[15] ai.asu.edu
+chapterId: 4, sectionId: 1
 url: https://ai.asu.edu/technical-foundation/articles-and-documentation/ai-integrity-asus-ai-acceleration-team-setting-new-standards-ethical-ai
-intendedUse: 二層構成の内容
+intendedUse: 自動評価と人による評価の二層構成の具体像
 excerpt:
 自動評価：このプロセスでは、AIを活用したテストにより、正確性、公平性、偏り、堅牢性、効率性などの主要な側面についてモデルを採点します。各モデルには0から1までのスコアが付けられ、問題のある領域がさらなる検討のために示されます。
 
 人による評価：構造化されたワークフローにより、AIモデルが技術的に健全であるだけでなく、実際の学術環境で実用的かつ効果的であることを確認します。
 
-[7] 法医学的職業評価における倫理的なAI利用のガイドライン
-chapterId: c5, sectionId: -
-url: https://www.abve.net/ai-guidelines
-intendedUse: 定期監査の頻度と記録
+[16] tech.asu.edu
+chapterId: 4, sectionId: 1
+url: https://tech.asu.edu/features/evaluation-framework-sets-new-benchmark-ethical-ai
+intendedUse: スコアの比較対象と、合否判定に留まらない設計
 excerpt:
+リウ氏は、このテストは合否判定の仕組みよりも精緻であると付け加えました。その代わりに、エンジンは正確性、堅牢性、公平性、偏見、効率性など、さまざまな側面について0から1までのスコアを生成します。これらのスコアは、標準的なベースモデルGPTと比較されます。倫理的AIエンジンの評価によると、現在、MyAI Builderにある20個すべてのLLMが基準を満たすスコアを獲得しています。
+
+[17] ai.asu.edu
+chapterId: 4, sectionId: 2
+url: https://ai.asu.edu/technical-foundation/articles-and-documentation/ai-integrity-asus-ai-acceleration-team-setting-new-standards-ethical-ai
+intendedUse: 継続的監視を第3層として設ける考え方（開発中の取り組み）
+excerpt:
+AIモデルは時間とともに進化するため、一度きりの評価では十分ではありません。ASUのAIアクセラレーションチームは、フレームワークの第3層として、継続的な監視システムの開発にすでに取り組んでいます。このシステムは、チャットボットが初期評価に合格した後も追跡します。
+
+[18] ai.asu.edu
+chapterId: 4, sectionId: 2
+url: https://ai.asu.edu/technical-foundation/articles-and-documentation/ai-integrity-asus-ai-acceleration-team-setting-new-standards-ethical-ai
+intendedUse: 公平性テストの具体的な方法
+excerpt:
+倫理的AIエンジンは、パフォーマンス格差分析を用いてこのような偏りをテストし、性別、民族、方言の違いにかかわらず、モデルが公平な回答を提供することを確認します。
+
+[19] news.mit.edu
+chapterId: 4, sectionId: 3
+url: https://news.mit.edu/2026/evaluating-autonomous-systems-ethics-0402
+intendedUse: 客観評価と主観的価値を分けるシナリオ評価手法
+excerpt:
+導入前に潜在的な倫理的ジレンマを関係者が迅速に特定できるように、MITの研究者たちは、コストや信頼性のような測定可能な成果と、公平性のような定性的または主観的な価値との相互作用のバランスを取る自動評価手法を開発しました。
+このシステムは、客観的な評価をユーザーが定義した人間の価値観から分離し、人間の代理として大規模言語モデル（LLM）を使用して、関係者の選好を捉え、取り入れます。
+
+[20] news.mit.edu
+chapterId: 4, sectionId: 3
+url: https://news.mit.edu/2026/evaluating-autonomous-systems-ethics-0402
+intendedUse: 研究段階であり検証が今後必要である点
+excerpt:
+SEED-SETが実際にどの程度役立つかを測定するため、研究者たちは、生成されたシナリオが実際の意思決定に役立つかどうかを確認するユーザー調査を実施する必要があります。
+
+[21] onlinelearningconsortium.org
+chapterId: 5, sectionId: 1
+url: https://onlinelearningconsortium.org/olc-insights/2025/05/ai-course-compass/
+intendedUse: 役割ごとに関与する段階と貢献を定める体制設計例
+excerpt:
+インストラクショナルデザイナー
+関与する段階：
+0 – 4
+貢献
+：戦略計画、コースマッピング、プロンプトエンジニアリング、プロトタイピングを主導します。
+教員
+関与する段階：
+1 – 5
+貢献：
+コンテンツを共同設計し、教育学的な整合性を維持し、実施を監督します。
+管理者（リーダー）
+関与する段階：
+0 – 2
+貢献：
+リーダーシップ、方針に関する指針、リソースの支援を提供します。
+研究者
+関与する段階：
+2、4 – 6
+貢献：
+評価設計、倫理的評価、データに基づく分析を支援し、エビデンスに基づく継続的な改善に貢献します。
+
+[22] www.abve.net
+chapterId: 5, sectionId: 2
+url: https://www.abve.net/ai-guidelines
+intendedUse: 人間による監督の要件（法医学的職業評価の文脈）
+excerpt:
+### 人間による監督：
+資格を有する法医学的職業専門家は、AIの出力を解釈し統合し、文脈上の正確性を確保し、AIへの過度な依存を避けるべきです。出力は、資格を有する職業専門家が確認し、解釈すべきです。
+
+[23] www.abve.net
+chapterId: 5, sectionId: 2
+url: https://www.abve.net/ai-guidelines
+intendedUse: 最終責任は人が負うという説明責任の考え方
+excerpt:
+### 説明責任：
+AIが果たした役割にかかわらず、評価者はすべての結論と推奨事項について単独で責任を負います。AIデータの誤用または誤解釈は、専門家としての倫理違反とみなされる可能性があります。
+
+[24] www.apa.org
+chapterId: 5, sectionId: 2
+url: https://www.apa.org/topics/artificial-intelligence-machine-learning/ethical-guidance-ai-professional-practice
+intendedUse: 心理サービスの文脈でも人間の監督が求められること
+excerpt:
+人間による監督と専門的判断
+AIは人間の意思決定を補強するものであり、置き換えるものではありません。心理学者は最終的な決定に責任を持ち、AIが生成した推奨事項に盲目的に依存してはなりません。
+
+[25] coplus-one.jp
+chapterId: 5, sectionId: 3
+url: https://coplus-one.jp/jis-ai-impact-assessment-standard/
+intendedUse: 影響評価と認証機関に関する国内規格の内容と範囲
+excerpt:
+日本規格協会が8月20日、AI関連の日本産業規格2件を発行したと報じられています。JIS Q 42005はAIシステム単体の影響評価の手法を定めたもので、評価を行うタイミングや範囲、責任の割当て、実施と記録・報告、承認、その後のモニタリングまでを扱います。附属書Eにはカスタマイズして使えるテンプレート例も収録されています。もう1件のJIS Q 42006は、AIマネジメントシステムの審査・認証機関に求められる事項を定めたもので、審査員が備えるべきAI技術・アルゴリズム・データ品質・倫理的影響評価の知識を明文化しました。
+
+[26] www.abve.net
+chapterId: 5, sectionId: 3
+url: https://www.abve.net/ai-guidelines
+intendedUse: 定期監査と記録の頻度・内容に関する推奨
+excerpt:
+### 定期監査
 AIツールが科学的厳密性と業界のベストプラクティスに引き続き適合することを確保するための定期監査。評価者は、AIツールを毎年、またはモデルが更新されるたびに監査し、公平性、透明性、有害な偏見がないことの証拠を記録することが推奨されます。
 
-[8] 評価の物差しと、現場の使い道
-chapterId: c5, sectionId: -
-url: https://coplus-one.jp/jis-ai-impact-assessment-standard/
-intendedUse: 影響評価の国内標準の内容
+[27] newspicks.com
+chapterId: 6, sectionId: -
+url: https://newspicks.com/news/16559852/?ref=user
+intendedUse: 何を良い回答とするかを決めないまま使う危うさ
 excerpt:
-JIS Q 42005はAIシステム単体の影響評価の手法を定めたもので、評価を行うタイミングや範囲、責任の割当て、実施と記録・報告、承認、その後のモニタリングまでを扱います。附属書Eにはカスタマイズして使えるテンプレート例も収録されています。もう1件のJIS Q 42006は、AIマネジメントシステムの審査・認証機関に求められる事項を定めたもので、審査員が備えるべきAI技術・アルゴリズム・データ品質・倫理的影響評価の知識を明文化しました。
+実はAIのクセは、勝手に生まれるものではありません。人が何を「良い回答」と評価したかによって、静かに育っていきます。
+
+[28] uxcontent.com
+chapterId: 6, sectionId: -
+url: https://uxcontent.com/ai-evaluation-content-design/
+intendedUse: 評価者間のばらつきを抑えるキャリブレーション
+excerpt:
+許容できる回答をそろえる：
+人はそれぞれ異なるメンタルモデルと、視点を形づくる固有の経験を持っています。これは、2人が同じ質問に異なる回答をする可能性があることを意味します。そのため、一貫性のない解釈を避けるには、許容できる回答をそろえることが重要です。認識をそろえる方法の1つが、キャリブレーションを実施することです。2人のレビュアーが同じ出力を少数（5件または10件）評価し、異なる回答について話し合い、合意に達します。
+
+[29] business.nikkei.com
+chapterId: 6, sectionId: -
+url: https://business.nikkei.com/atcl/gen/19/00351/102300214/
+intendedUse: AIへの過度な依存が人の判断力に与える影響（研究による指摘）
+excerpt:
+マイクロソフトの最近の研究によると、人間が知識労働をAIに依存し続けると、人間が批判的思考を使うことが減り、時間の経過とともにそのスキルが衰退してしまうという。
