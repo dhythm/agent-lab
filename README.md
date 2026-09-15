@@ -44,7 +44,6 @@ GitHub リポジトリが無くても試せるよう、添付ファイル付き�
 | Research: hosting comparison | research | Web 検索、情報収集、比較表付きレポート生成 |
 | Document: meeting notes → summary | general | 文書理解、決定事項 / アクション抽出 |
 | Coding: self-contained kata | coding | リポジトリ無しでの実装 + テスト。成果物は出力ディレクトリに保存 |
-| Content: SEO article outline | general | 長い編集指示の読解、原文抜粋の選定、サンドボックス内の検証 CLI (`validate-outline.mjs`) を使った「検証 → 修正 → 提出」ループ |
 | Content: SEO article body | article | Task 欄が `{{変数}}` 入りのライター用プロンプト。添付 JSON で変数を埋めた本文が Agent に渡り、Agent が書いた article.json をスキーマと文字数目標で検証 |
 
 添付ファイルはサンドボックスの `/workspace/inputs/` に配置されます。Agent が出力ディレクトリ (Anthropic: `/mnt/session/outputs`、OpenAI: `/workspace/outputs`) に書いたファイルは Run 完了後に取得され、Result から ダウンロードできます。
@@ -53,7 +52,7 @@ GitHub リポジトリが無くても試せるよう、添付ファイル付き�
 
 Task type `Article (structured output)` では、Task 欄のテキストを **プロンプトのテンプレート** として扱います。`{{seoKeywords}}` `{{title}}` `{{chapters}}` `{{references}}` などの変数を添付 JSON (例: `public/samples/article-writer/article-input.json`) の値で埋め、末尾に出力先 (`article.json`) と JSON Schema を付けて、通常のタスクと同じように OpenAI / Claude の Agent へ渡します。Run 完了後、Agent が出力ディレクトリに書いた `article.json` (無ければ最終回答の JSON) をスキーマで検証し、章・節ごとの targetCharCount との差を Timeline に出します。結果の Tests 欄が `JSON schema: passed / failed` になります。
 
-- 添付 JSON は `chapters` / `references` をテキストで持つ形式か、構成づくりプリセットが出力した `outline` を含む形式のどちらでもよい
+- 添付 JSON は `chapters` / `references` をテキストで持つ形式か、章・節・参照を構造化した `outline` を含む形式のどちらでもよい
 - テンプレート側の変数と JSON の値が合わない (未知の変数、必須値の欠落) 場合は Agent を呼ばずに失敗する
 - `/api/article` は同じテンプレートを Messages / Responses API の構造化出力で直接呼ぶ HTTP 入口 (サンドボックスなし)
 

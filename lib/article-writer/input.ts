@@ -1,6 +1,6 @@
 import type { ArticleTemplateVariables } from "./template"
 
-/** Chapter/section shape produced by the outline step (public/samples/seo-outline/outline.schema.json). */
+/** Structured outline: chapters with optional sections, plus the references assigned to them. */
 export interface OutlineSection {
   id: string
   title: string
