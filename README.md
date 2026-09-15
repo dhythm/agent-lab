@@ -45,12 +45,13 @@ GitHub リポジトリが無くても試せるよう、添付ファイル付き�
 | Document: meeting notes → summary | general | 文書理解、決定事項 / アクション抽出 |
 | Coding: self-contained kata | coding | リポジトリ無しでの実装 + テスト。成果物は出力ディレクトリに保存 |
 | Content: SEO article outline | general | 長い編集指示の読解、原文抜粋の選定、サンドボックス内の検証 CLI (`validate-outline.mjs`) を使った「検証 → 修正 → 提出」ループ |
+| Content: SEO article body | article | 固定テンプレート + outline 入力 → スキーマ付き JSON。サンドボックスを使わず構造化出力の 1 回呼び出しで、検証失敗時の再試行も Timeline に出る |
 
 添付ファイルはサンドボックスの `/workspace/inputs/` に配置されます。Agent が出力ディレクトリ (Anthropic: `/mnt/session/outputs`、OpenAI: `/workspace/outputs`) に書いたファイルは Run 完了後に取得され、Result から ダウンロードできます。
 
 ### 記事本文の生成 (テンプレート + 入力 → JSON)
 
-記事構成 (outline) から本文を生成する工程は、サンドボックス型の Agent ではなく **固定の system テンプレート + 構造化出力** で実装しています (`lib/article-writer/`)。system は `{{seoKeywords}}` などの変数を埋めたテンプレート、ユーザーメッセージは `<direction> <title> <chapters> <references>` で区切った入力、出力は `ARTICLE_RESPONSE_JSON_SCHEMA` に一致する JSON です。
+記事構成 (outline) から本文を生成する工程は、サンドボックス型の Agent ではなく **固定の system テンプレート + 構造化出力** で実装しています (`lib/article-writer/`)。UI では Task type `Article (structured output)` を選び、入力 JSON を添付して Run すると、OpenAI / Claude それぞれの構造化出力呼び出し (テンプレート描画 → リクエスト → 検証 → 再試行 → `article.json`) が Timeline に流れます。`/api/article` は同じ処理を HTTP で直接呼ぶ入口です。system は `{{seoKeywords}}` などの変数を埋めたテンプレート、ユーザーメッセージは `<direction> <title> <chapters> <references>` で区切った入力、出力は `ARTICLE_RESPONSE_JSON_SCHEMA` に一致する JSON です。
 
 ```bash
 curl -s -X POST http://localhost:3000/api/article \

@@ -1,6 +1,6 @@
 export type ProviderId = "openai" | "anthropic"
 
-export type TaskType = "coding" | "research" | "data" | "general"
+export type TaskType = "coding" | "research" | "data" | "general" | "article"
 
 export type RunStatus =
   | "queued"

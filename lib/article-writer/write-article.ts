@@ -12,6 +12,8 @@ export interface CompletionRequest {
   messages: CompletionMessage[]
   /** JSON schema the reply must satisfy. Providers pass it to their structured-output option. */
   schema: Record<string, unknown>
+  /** Aborting it cancels the in-flight request. */
+  signal?: AbortSignal
 }
 
 export interface CompletionUsage {
@@ -50,7 +52,14 @@ export interface WriteArticleResult {
 export interface WriteArticleOptions {
   /** Extra attempts after the first reply fails validation. Default 1. */
   maxRetries?: number
+  signal?: AbortSignal
+  /** Observes each attempt; used by Agent Lab to render the timeline. */
+  onAttempt?: (info: AttemptInfo) => Promise<void> | void
 }
+
+export type AttemptInfo =
+  | { phase: "request"; attempt: number; request: CompletionRequest }
+  | { phase: "reply"; attempt: number; text: string; usage: CompletionUsage; errors: string[] }
 
 const TARGET_LINE = /^\s*H[23]\s+(?:\[[^\]]*\]\s+)?(.+?)\s+\(targetCharCount:\s*(\d+)\)\s*$/
 
@@ -119,9 +128,12 @@ export async function writeArticle(
   let lastErrors: string[] = []
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const reply = await completer.complete({ system, messages, schema: ARTICLE_RESPONSE_JSON_SCHEMA })
+    const request: CompletionRequest = { system, messages: [...messages], schema: ARTICLE_RESPONSE_JSON_SCHEMA, signal: options.signal }
+    await options.onAttempt?.({ phase: "request", attempt, request })
+    const reply = await completer.complete(request)
     usage = addUsage(usage, reply.usage)
     const parsed = parseArticle(reply.text)
+    await options.onAttempt?.({ phase: "reply", attempt, text: reply.text, usage: reply.usage, errors: parsed.ok ? [] : parsed.errors })
     if (parsed.ok) {
       return {
         article: parsed.article,

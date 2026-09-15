@@ -14,7 +14,7 @@ const createSchema = z.object({
   task: z.string().trim().min(1).max(20_000),
   repository: z.string().trim().max(500).optional(),
   branch: z.string().trim().max(200).optional(),
-  type: z.enum(["coding", "research", "data", "general"]).default("coding"),
+  type: z.enum(["coding", "research", "data", "general", "article"]).default("coding"),
   providers: z.array(z.enum(["openai", "anthropic"])).min(1),
 })
 

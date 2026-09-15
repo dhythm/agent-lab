@@ -28,6 +28,7 @@ const TASK_TYPES: { value: TaskType; label: string }[] = [
   { value: "research", label: "Research" },
   { value: "data", label: "Data Analysis" },
   { value: "general", label: "General" },
+  { value: "article", label: "Article (structured output)" },
 ]
 
 function FieldLabel({ children }: { children: React.ReactNode }) {

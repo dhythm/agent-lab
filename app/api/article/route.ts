@@ -2,60 +2,16 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 import { loadConfig } from "@/lib/agent-lab/config"
 import { createAnthropicCompleter, createOpenAICompleter } from "@/lib/article-writer/completers"
-import { articleInputFromOutline, type ArticleInput } from "@/lib/article-writer/input"
+import { articleInputSchema, toArticleInput } from "@/lib/article-writer/input-schema"
 import { writeArticle } from "@/lib/article-writer/write-article"
 
 export const runtime = "nodejs"
 export const maxDuration = 600
 
-const templateFields = {
-  seoKeywords: z.string().trim().min(1),
-  coreKeyword: z.string().trim().min(1).optional(),
-  topicKeyword: z.string().trim().min(1).optional(),
-  writingStyle: z.string().optional(),
-  writingRequirement: z.string().optional(),
-  dateAwareInstruction: z.string().optional(),
-  introAndOutroInstruction: z.string().optional(),
-  instructionForReference: z.string().optional(),
-}
-
-const textInputSchema = z.object({
-  ...templateFields,
-  title: z.string().trim().min(1),
-  direction: z.string().default(""),
-  chapters: z.string().min(1),
-  references: z.string().min(1),
-})
-
-const outlineSchema = z.object({
-  direction: z.string().default(""),
-  chapters: z.array(
-    z.object({
-      id: z.string(),
-      title: z.string(),
-      targetCharCount: z.number(),
-      sections: z.array(z.object({ id: z.string(), title: z.string(), targetCharCount: z.number() })).default([]),
-    }),
-  ),
-  references: z.array(
-    z.object({
-      id: z.string(),
-      chapterId: z.string(),
-      sectionId: z.string().nullable().default(null),
-      title: z.string(),
-      url: z.string(),
-      excerpt: z.string(),
-      intendedUse: z.string().optional(),
-    }),
-  ),
-})
-
-const outlineInputSchema = z.object({ ...templateFields, title: z.string().trim().min(1), outline: outlineSchema })
-
 const bodySchema = z.object({
   provider: z.enum(["anthropic", "openai"]).default("anthropic"),
   model: z.string().trim().min(1).optional(),
-  input: z.union([textInputSchema, outlineInputSchema]),
+  input: articleInputSchema,
 })
 
 export async function POST(request: Request) {
@@ -70,7 +26,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request", issues: parsed.error.issues }, { status: 400 })
   }
   const { provider, model, input: raw } = parsed.data
-  const input: ArticleInput = "outline" in raw ? articleInputFromOutline(raw) : raw
+  const input = toArticleInput(raw)
 
   const config = loadConfig()
   const completer =
@@ -86,7 +42,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await writeArticle(input, completer)
+    const result = await writeArticle(input, completer, { signal: request.signal })
     return NextResponse.json(result)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)

@@ -8,6 +8,10 @@ import type { ProviderId } from "./types"
 import { createAnthropicProvider } from "@/lib/providers/anthropic/provider"
 import { createOpenAIProvider } from "@/lib/providers/openai/provider"
 import { createMockProvider } from "@/lib/providers/mock/provider"
+import { createArticleProvider } from "@/lib/providers/article/provider"
+import { createMockCompleter } from "@/lib/providers/article/mock-completer"
+import { estimateCost } from "@/lib/providers/openai/provider"
+import { createAnthropicCompleter, createOpenAICompleter } from "@/lib/article-writer/completers"
 
 export interface AgentLabService {
   config: AgentLabConfig
@@ -44,18 +48,21 @@ function buildService(): AgentLabService {
   if (mocked.has("anthropic")) config.anthropic.enabled = true
   const store = createRunStore({ dir: path.join(config.dataDir, "runs") })
   const files = createFileStore(config.dataDir)
-  const providers: AgentProvider[] = [
-    mocked.has("openai")
-      ? createMockProvider("openai", "OpenAI Agents API (mock)", files)
-      : config.openai.enabled
-        ? createOpenAIProvider(config, files)
-        : unavailable("openai", "OpenAI Agents API", "set OPENAI_API_KEY"),
-    mocked.has("anthropic")
-      ? createMockProvider("anthropic", "Claude Managed Agents (mock)", files)
-      : config.anthropic.enabled
-        ? createAnthropicProvider(config, files)
-        : unavailable("anthropic", "Claude Managed Agents", "set ANTHROPIC_API_KEY"),
-  ]
+  // Sandbox agents handle coding/research/data/general; `article` tasks are a
+  // single structured-output call, routed by the article wrapper.
+  const openai = mocked.has("openai")
+    ? createArticleProvider(createMockProvider("openai", "OpenAI Agents API (mock)", files), () => createMockCompleter("openai"), files)
+    : config.openai.enabled
+      ? createArticleProvider(createOpenAIProvider(config, files), () => createOpenAICompleter(config.openai.model), files, {
+          estimateCost: (usage) => estimateCost(usage, config),
+        })
+      : unavailable("openai", "OpenAI Agents API", "set OPENAI_API_KEY")
+  const anthropic = mocked.has("anthropic")
+    ? createArticleProvider(createMockProvider("anthropic", "Claude Managed Agents (mock)", files), () => createMockCompleter("anthropic"), files)
+    : config.anthropic.enabled
+      ? createArticleProvider(createAnthropicProvider(config, files), () => createAnthropicCompleter(config.anthropic.model), files)
+      : unavailable("anthropic", "Claude Managed Agents", "set ANTHROPIC_API_KEY")
+  const providers: AgentProvider[] = [openai, anthropic]
   const orchestrator = createOrchestrator({ store, providers })
   const availableProviders: ProviderId[] = []
   if (config.openai.enabled) availableProviders.push("openai")

@@ -28,6 +28,8 @@ const TYPE_GUIDANCE: Record<AgentTask["type"], string> = {
   research: "Gather information from the web, compare the options, and write a Markdown report.",
   data: "Load the provided data, analyze it with code, and write your findings to a Markdown file.",
   general: "Complete the task as precisely as possible.",
+  // Article tasks never reach the sandbox providers; see lib/providers/article.
+  article: "Complete the task as precisely as possible.",
 }
 
 export function buildTaskPrompt(task: AgentTask, options: TaskPromptOptions): string {

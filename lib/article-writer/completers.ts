@@ -29,7 +29,7 @@ export function createAnthropicCompleter(model: string, client = new Anthropic()
             system: [{ type: "text", text: request.system, cache_control: { type: "ephemeral" } }],
             messages: request.messages.map((m) => ({ role: m.role, content: m.content })),
             output_config: { effort: "high", format: { type: "json_schema", schema: request.schema } },
-          })
+          }, { signal: request.signal })
           .finalMessage()
       } catch (error) {
         throw describeApiError("Anthropic", error)
@@ -71,7 +71,7 @@ export function createOpenAICompleter(model: string, client = new OpenAI()): Str
           input: request.messages.map((m) => ({ role: m.role, content: m.content })),
           max_output_tokens: MAX_OUTPUT_TOKENS,
           text: { format: { type: "json_schema", name: "article", schema: request.schema, strict: true } },
-        })
+        }, { signal: request.signal })
       } catch (error) {
         throw describeApiError("OpenAI", error)
       }

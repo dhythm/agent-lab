@@ -81,6 +81,15 @@ export const taskPresets: TaskPreset[] = [
       { name: "validate-outline.mjs", url: "/samples/seo-outline/validate-outline.mjs" },
     ],
   },
+  {
+    id: "content-seo-article",
+    label: "Content: SEO article body (template → JSON)",
+    description: "Fixed writer template + outline input → schema-typed article JSON via structured output",
+    type: "article",
+    prompt:
+      "添付の article-input.json (タイトル・SEO キーワード・記事構成 outline) を入力として、固定の WEB ライター用 system テンプレートで記事本文を生成し、指定スキーマの JSON (title / contents[].heading / paragraphs / sections) を返してください。この種別はサンドボックスを使わず、構造化出力付きの 1 回の呼び出しで実行されます。",
+    samples: [{ name: "article-input.json", url: "/samples/article-writer/article-input.json" }],
+  },
 ]
 
 export function findPreset(id: string): TaskPreset | undefined {
