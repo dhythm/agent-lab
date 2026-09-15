@@ -90,25 +90,17 @@ export function buildUserMessage(input: Pick<ArticleInput, "direction" | "seoKey
   ].join("\n")
 }
 
-export interface OutlineBridgeInput {
-  title: string
-  seoKeywords: string
+export interface OutlineBridgeInput extends Omit<ArticleInput, "direction" | "chapters" | "references"> {
   outline: Outline
-  coreKeyword?: string
-  topicKeyword?: string
-  writingStyle?: string
 }
 
-/** Bridge from the validated outline (step 1) to the writer input (step 2). */
+/** Bridge from the validated outline (step 1) to the writer input (step 2). Every template variable passes through. */
 export function articleInputFromOutline(input: OutlineBridgeInput): ArticleInput {
+  const { outline, ...variables } = input
   return {
-    title: input.title,
-    seoKeywords: input.seoKeywords,
-    coreKeyword: input.coreKeyword,
-    topicKeyword: input.topicKeyword,
-    writingStyle: input.writingStyle,
-    direction: input.outline.direction,
-    chapters: formatChapters(input.outline.chapters),
-    references: formatReferences(input.outline.references),
+    ...variables,
+    direction: outline.direction,
+    chapters: formatChapters(outline.chapters),
+    references: formatReferences(outline.references),
   }
 }

@@ -70,4 +70,16 @@ describe("articleInputFromOutline", () => {
     expect(input.chapters).toContain("H3 [s2] データの不足")
     expect(input.references).toContain("[2] 資料B")
   })
+
+  it("passes the optional template blocks through", () => {
+    const input = articleInputFromOutline({
+      title: "タイトル",
+      seoKeywords: "AI,評価",
+      outline,
+      dateAwareInstruction: "現在は日本時間で 2026年9月15日 です。",
+      instructionForReference: "参照は（参照）と書く。",
+    })
+    expect(input.dateAwareInstruction).toBe("現在は日本時間で 2026年9月15日 です。")
+    expect(input.instructionForReference).toBe("参照は（参照）と書く。")
+  })
 })
