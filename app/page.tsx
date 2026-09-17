@@ -98,7 +98,6 @@ export default function Page() {
     try {
       const formData = new FormData()
       formData.set("task", form.task)
-      if (form.systemPrompt) formData.set("systemPrompt", form.systemPrompt)
       if (form.repository) formData.set("repository", form.repository)
       if (form.branch) formData.set("branch", form.branch)
       formData.set("type", form.type)
@@ -144,7 +143,6 @@ export default function Page() {
         }
       }
       setForm({
-        systemPrompt: record.task.systemPrompt ?? "",
         task: record.task.prompt,
         repository: record.task.repository ?? "",
         branch: record.task.branch ?? "",
@@ -165,9 +163,8 @@ export default function Page() {
     if (!preset) return
     let files: File[] = []
     let task = preset.prompt
-    let systemPrompt = preset.systemPrompt ?? ""
     try {
-      const [loadedFiles, loadedTask, loadedSystemPrompt] = await Promise.all([
+      const [loadedFiles, loadedTask] = await Promise.all([
         Promise.all((preset.samples ?? []).map(async (sample) => {
           const response = await fetch(sample.url)
           if (!response.ok) throw new Error(`Failed to load ${sample.name}`)
@@ -179,22 +176,14 @@ export default function Page() {
               return response.text()
             })
           : Promise.resolve(preset.prompt),
-        preset.systemPromptUrl
-          ? fetch(preset.systemPromptUrl).then((response) => {
-              if (!response.ok) throw new Error("Failed to load preset system instructions")
-              return response.text()
-            })
-          : Promise.resolve(preset.systemPrompt ?? ""),
       ])
       files = loadedFiles
       task = loadedTask
-      systemPrompt = loadedSystemPrompt
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load sample files")
       return
     }
     setForm({
-      systemPrompt,
       task,
       repository: preset.repository ?? "",
       branch: preset.repository ? "main" : "",

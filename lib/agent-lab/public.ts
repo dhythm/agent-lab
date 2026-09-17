@@ -9,7 +9,8 @@ function publicFiles(files: StoredFile[] | undefined): PublicFile[] | undefined 
 
 /** Strips server-side paths before a task leaves the API. */
 export function toPublicTask(task: AgentTask) {
-  return { ...task, attachments: publicFiles(task.attachments) }
+  const { systemPrompt: _systemPrompt, ...publicTask } = task
+  return { ...publicTask, attachments: publicFiles(task.attachments) }
 }
 
 export function toPublicRun(run: AgentRun) {

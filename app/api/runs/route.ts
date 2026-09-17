@@ -3,6 +3,7 @@ import { z } from "zod"
 import { getService } from "@/lib/agent-lab/service"
 import { newId } from "@/lib/agent-lab/run-store"
 import { toPublicTask } from "@/lib/agent-lab/public"
+import { getSeoProofreadSystemPrompt } from "@/lib/agent-lab/seo-prompt"
 import type { AgentTask, StoredFile } from "@/lib/agent-lab/types"
 
 export const runtime = "nodejs"
@@ -16,19 +17,10 @@ const lineEndings = (value: string) => value.replace(/\r\n?/g, "\n")
 
 const createSchema = z.object({
   task: z.string().transform(lineEndings).pipe(z.string().trim().min(1).max(200_000)),
-  systemPrompt: z.string().transform(lineEndings).pipe(z.string().trim().max(50_000)).optional(),
   repository: z.string().trim().max(500).optional(),
   branch: z.string().trim().max(200).optional(),
   type: z.enum(["coding", "research", "data", "general", "article", "seo-proofread"]).default("coding"),
   providers: z.array(z.enum(["openai", "anthropic"])).min(1),
-}).superRefine((value, context) => {
-  if (value.type === "seo-proofread" && !value.systemPrompt) {
-    context.addIssue({
-      code: "custom",
-      path: ["systemPrompt"],
-      message: "System instructions are required for SEO proofreading",
-    })
-  }
 })
 
 function titleFrom(prompt: string): string {
@@ -49,7 +41,6 @@ async function parseBody(request: Request): Promise<ParsedBody> {
     return {
       fields: {
         task: form.get("task"),
-        systemPrompt: form.get("systemPrompt") ?? undefined,
         repository: form.get("repository") ?? undefined,
         branch: form.get("branch") ?? undefined,
         type: form.get("type") ?? undefined,
@@ -98,7 +89,8 @@ export async function POST(request: Request) {
   const task: AgentTask = {
     id: taskId,
     title: titleFrom(input.task),
-    systemPrompt: input.systemPrompt || undefined,
+    systemPrompt:
+      input.type === "seo-proofread" ? await getSeoProofreadSystemPrompt() : undefined,
     prompt: input.task,
     type: input.type,
     repository: input.repository || undefined,

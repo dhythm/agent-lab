@@ -7,9 +7,7 @@ export interface TaskPreset {
   description: string
   type: TaskType
   prompt: string
-  systemPrompt?: string
   promptUrl?: string
-  systemPromptUrl?: string
   repository?: string
   /** Sample files served from /public that are attached automatically. */
   samples?: { name: string; url: string }[]
@@ -86,7 +84,6 @@ export const taskPresets: TaskPreset[] = [
     type: "seo-proofread",
     prompt: "",
     promptUrl: "/samples/seo-proofread-user.txt",
-    systemPromptUrl: "/samples/seo-proofread-system.txt",
   },
 ]
 
