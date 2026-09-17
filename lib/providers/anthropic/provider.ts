@@ -35,6 +35,16 @@ function isPersistedEvent(event: StreamEvent): event is SessionEvent {
   return event.type !== "event_start" && event.type !== "event_delta"
 }
 
+/**
+ * A failed model request leaves the session idle with no agent.message, which
+ * would otherwise surface downstream as a confusing "output is not valid JSON".
+ * Tool-only sessions legitimately end without a message, so they still pass.
+ */
+export function sessionOutputError(finalText: string, modelRequestFailed: boolean): Error | undefined {
+  if (finalText.trim() || !modelRequestFailed) return undefined
+  return new Error("The model request failed before producing any output")
+}
+
 function costFromListCost(listCost: { amount: string; currency: string } | null | undefined): number | undefined {
   if (!listCost || listCost.currency !== "USD") return undefined
   const cents = Number(listCost.amount)
@@ -226,6 +236,10 @@ export function createAnthropicProvider(config: AgentLabConfig, files: FileStore
     }
 
     if (failure) throw failure
+    if (!state.cancelled) {
+      const outputError = sessionOutputError(normalize.finalText(), normalize.modelRequestFailed())
+      if (outputError) throw outputError
+    }
 
     const finalSession = await client.beta.sessions.retrieve(session.id)
     const costUsd = costFromListCost(finalSession.usage?.list_cost)

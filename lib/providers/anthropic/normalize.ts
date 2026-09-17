@@ -15,6 +15,8 @@ export interface AnthropicNormalizer {
   (event: SessionEvent): NormalizedAction[]
   /** Text of the last agent.message seen, used as the final output. */
   finalText(): string
+  /** True when a model request ended in error, which produces no output. */
+  modelRequestFailed(): boolean
 }
 
 function asString(value: unknown): string | undefined {
@@ -100,6 +102,7 @@ export function createAnthropicNormalizer(): AnthropicNormalizer {
   const pending = new Map<string, { type: AgentEventType; startedAt: number }>()
   let lastTestFailed = false
   let lastMessage = ""
+  let modelRequestFailed = false
 
   function append(key: string, event: NewAgentEvent): NormalizedAction {
     return { kind: "append", key, event }
@@ -190,6 +193,42 @@ export function createAnthropicNormalizer(): AnthropicNormalizer {
             metadata: undefined,
           }),
         ]
+      // A long single-shot generation emits nothing else, so surface the
+      // request itself to show the session is alive.
+      case "span.model_request_start":
+        pending.set(event.id, { type: "thinking", startedAt: Date.parse(event.processed_at) })
+        return [
+          append(event.id, {
+            type: "thinking",
+            title: "Model request",
+            detail: undefined,
+            timestamp: event.processed_at,
+            metadata: undefined,
+          }),
+        ]
+      case "span.model_request_end": {
+        const key = event.model_request_start_id
+        const started = pending.get(key)
+        pending.delete(key)
+        const durationMs =
+          started && Number.isFinite(started.startedAt)
+            ? Math.max(0, Date.parse(event.processed_at) - started.startedAt)
+            : undefined
+        if (!event.is_error) return [{ kind: "update", key, patch: { durationMs } }]
+        modelRequestFailed = true
+        return [
+          {
+            kind: "update",
+            key,
+            patch: {
+              type: "error",
+              title: "Model request failed",
+              durationMs,
+              metadata: { status: "failed" },
+            },
+          },
+        ]
+      }
       case "agent.message": {
         const text = textOf(event.content)
         if (!text) return []
@@ -240,5 +279,6 @@ export function createAnthropicNormalizer(): AnthropicNormalizer {
   }) as AnthropicNormalizer
 
   normalize.finalText = () => lastMessage
+  normalize.modelRequestFailed = () => modelRequestFailed
   return normalize
 }

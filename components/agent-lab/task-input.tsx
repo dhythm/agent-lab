@@ -101,7 +101,7 @@ export function TaskInput({
         value={value.task}
         onChange={(e) => onChange({ ...value, task: e.target.value, presetId: undefined })}
         disabled={disabled}
-        rows={value.type === "seo-proofread" || value.type === "article" ? 10 : 4}
+        rows={4}
         className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2.5 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:opacity-60"
         placeholder="Describe the task for both agents..."
       />

@@ -152,10 +152,48 @@ describe("anthropic normalizer", () => {
     ).toMatchObject({ event: { type: "retry", title: "Session rescheduled" } })
   })
 
-  it("ignores span and status events", () => {
+  it("ignores status events", () => {
     const normalize = createAnthropicNormalizer()
-    expect(normalize({ id: "s", type: "span.model_request_start", processed_at: at } as SessionEvent)).toEqual([])
     expect(normalize({ id: "s", type: "session.status_running", processed_at: at } as SessionEvent)).toEqual([])
+  })
+
+  it("shows a model request while the agent produces no other events", () => {
+    const normalize = createAnthropicNormalizer()
+    expect(
+      normalize({ id: "req", type: "span.model_request_start", processed_at: at } as SessionEvent)[0],
+    ).toMatchObject({
+      kind: "append",
+      key: "req",
+      event: { type: "thinking", title: "Model request" },
+    })
+    expect(
+      normalize({
+        id: "end",
+        type: "span.model_request_end",
+        model_request_start_id: "req",
+        processed_at: "2026-09-14T00:00:04.000Z",
+      } as unknown as SessionEvent)[0],
+    ).toEqual({ kind: "update", key: "req", patch: { durationMs: 4000 } })
+    expect(normalize.modelRequestFailed()).toBe(false)
+  })
+
+  it("marks a failed model request instead of silently dropping it", () => {
+    const normalize = createAnthropicNormalizer()
+    normalize({ id: "req", type: "span.model_request_start", processed_at: at } as SessionEvent)
+    const [action] = normalize({
+      id: "end",
+      type: "span.model_request_end",
+      model_request_start_id: "req",
+      is_error: true,
+      processed_at: "2026-09-14T00:00:04.000Z",
+    } as unknown as SessionEvent)
+
+    expect(action).toMatchObject({
+      kind: "update",
+      key: "req",
+      patch: { title: "Model request failed", metadata: { status: "failed" } },
+    })
+    expect(normalize.modelRequestFailed()).toBe(true)
   })
 
   it("truncates long message titles", () => {

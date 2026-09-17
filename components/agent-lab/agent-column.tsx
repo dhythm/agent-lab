@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Square, Clock, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ProviderMark } from "./provider-mark"
@@ -47,8 +47,16 @@ export function AgentColumn({
   const lastPending =
     isActive && last !== undefined && ACTIVE_TOOL_TYPES.has(last.type) && last.detail === undefined
 
+  // Keep the newest step in view so a running agent needs no manual scrolling.
+  const timeline = useRef<HTMLOListElement>(null)
+  useEffect(() => {
+    if (!isActive) return
+    const list = timeline.current
+    if (list) list.scrollTop = list.scrollHeight
+  }, [isActive, events.length])
+
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card">
+    <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
       <div className="flex items-center gap-2.5 border-b border-border px-3 py-2.5">
         <ProviderMark id={config.id} />
         <div className="min-w-0 leading-tight">
@@ -82,7 +90,7 @@ export function AgentColumn({
         </div>
       </div>
 
-      <div className="flex-1 px-2 py-2">
+      <div className="flex min-h-0 flex-1 flex-col px-2 py-2">
         {!run ? (
           <div className="flex h-full min-h-40 flex-col items-center justify-center gap-1 px-4 py-8 text-center">
             <div className="text-sm font-medium text-foreground">Waiting to run</div>
@@ -95,7 +103,10 @@ export function AgentColumn({
             {connectionError && <div className="text-xs text-muted-foreground">{connectionError}</div>}
           </div>
         ) : (
-          <ol className="max-h-[32rem] space-y-0.5 overflow-y-auto">
+          <ol
+            ref={timeline}
+            className="min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain"
+          >
             {events.map((event, i) => (
               <TimelineEventRow
                 key={event.id}

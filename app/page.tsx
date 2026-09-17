@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { TriangleAlert } from "lucide-react"
+import { Loader2, Pencil, Play, TriangleAlert } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { TopBar, type HistoryItem } from "@/components/agent-lab/top-bar"
 import {
   TaskInput,
@@ -49,6 +50,8 @@ export default function Page() {
   const [selectedEvent, setSelectedEvent] = useState<AgentEvent | null>(null)
   const [error, setError] = useState<string | undefined>()
   const [submitting, setSubmitting] = useState(false)
+  // The form is only needed while composing; collapse it so the timelines own the viewport.
+  const [setupOpen, setSetupOpen] = useState(true)
 
   const openai = useRunStream(active?.runIds.openai, active?.initialRuns.openai)
   const anthropic = useRunStream(active?.runIds.anthropic, active?.initialRuns.anthropic)
@@ -82,6 +85,10 @@ export default function Page() {
       })
       .catch((e) => console.error("config load failed", e))
   }, [refreshHistory])
+
+  useEffect(() => {
+    setSetupOpen(active === undefined)
+  }, [active])
 
   const anyActive = providerOrder.some((id) => {
     const status = runs[id]?.status
@@ -237,7 +244,7 @@ export default function Page() {
   const evaluable = providerOrder.filter((id) => runs[id] && TERMINAL.has(runs[id]!.status))
 
   return (
-    <div className="min-h-screen bg-[#fafafa] text-foreground">
+    <div className="flex h-screen flex-col overflow-hidden bg-[#fafafa] text-foreground">
       <TopBar
         history={history}
         activeTaskId={active?.task.id}
@@ -245,77 +252,114 @@ export default function Page() {
         onNewTask={handleNewTask}
       />
 
-      <main className="mx-auto max-w-[1400px] space-y-6 px-4 py-6 md:px-6">
-        <TaskInput
-          value={form}
-          onChange={setForm}
-          onPreset={handlePreset}
-          disabled={anyActive || submitting}
-          savedAttachments={active ? (active.task.attachments ?? []) : undefined}
-        />
+      <main className="mx-auto flex w-full min-h-0 max-w-[1400px] flex-1 flex-col gap-4 px-4 py-4 md:px-6">
+        <div className="shrink-0 space-y-4">
+          {setupOpen ? (
+            <>
+              <TaskInput
+                value={form}
+                onChange={setForm}
+                onPreset={handlePreset}
+                disabled={anyActive || submitting}
+                savedAttachments={active ? (active.task.attachments ?? []) : undefined}
+              />
 
-        <AgentSetup
-          selected={selected}
-          onSelectedChange={setSelected}
-          availability={availability}
-          isRunning={anyActive || submitting}
-          canRun={selected.length > 0 && form.task.trim().length > 0}
-          onRun={handleRun}
-        />
-
-        {error && (
-          <div className="flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
-            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-red-600" />
-            <div className="text-sm text-red-700">{error}</div>
-          </div>
-        )}
-
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-foreground">Execution comparison</h2>
-            <span className="text-xs text-muted-foreground">Click any step to inspect the underlying tool call</span>
-          </div>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <AgentColumn
-              config={providerConfigs.openai}
-              run={runs.openai}
-              onSelect={setSelectedEvent}
-              onStop={() => handleStop("openai")}
-              connectionError={openai.connectionError}
-            />
-            <AgentColumn
-              config={providerConfigs.anthropic}
-              run={runs.anthropic}
-              onSelect={setSelectedEvent}
-              onStop={() => handleStop("anthropic")}
-              connectionError={anthropic.connectionError}
-            />
-          </div>
-        </section>
-
-        {failed.length > 0 && !anyActive && (
-          <div className="flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
-            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-red-600" />
-            <div>
-              <div className="text-sm font-medium text-red-700">
-                {failed.map((id) => providerConfigs[id].vendor).join(" and ")} failed
-              </div>
-              <div className="text-xs text-red-600/80">Review the execution timeline above for the failing step.</div>
+              <AgentSetup
+                selected={selected}
+                onSelectedChange={setSelected}
+                availability={availability}
+                isRunning={anyActive || submitting}
+                canRun={selected.length > 0 && form.task.trim().length > 0}
+                onRun={handleRun}
+              />
+            </>
+          ) : (
+            <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-2.5">
+              <span className="shrink-0 rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-xs font-medium text-foreground/80">
+                {form.type}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                {active?.task.title ?? form.task}
+              </span>
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {selected.map((id) => providerConfigs[id].vendor).join(" · ") || "No agent"}
+              </span>
+              <Button size="xs" variant="outline" onClick={() => setSetupOpen(true)}>
+                <Pencil className="size-3" />
+                Edit
+              </Button>
+              <Button
+                size="xs"
+                onClick={handleRun}
+                disabled={anyActive || submitting || selected.length === 0 || !form.task.trim()}
+              >
+                {anyActive || submitting ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : (
+                  <Play className="size-3" />
+                )}
+                Run
+              </Button>
             </div>
-          </div>
-        )}
+          )}
 
-        {showComparison && (
-          <>
-            <ResultComparison runs={runs} />
-            <Evaluation
-              scores={active?.evaluations ?? {}}
-              onScore={handleScore}
-              available={evaluable}
-              saved={active?.savedEvaluations ?? {}}
-            />
-          </>
-        )}
+          {error && (
+            <div className="flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0 text-red-600" />
+              <div className="text-sm text-red-700">{error}</div>
+            </div>
+          )}
+        </div>
+
+        {/* The only growing region: everything below stays inside the viewport. */}
+        <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto">
+          <section className="flex min-h-[26rem] flex-1 flex-col gap-3">
+            <div className="flex shrink-0 items-center justify-between">
+              <h2 className="text-sm font-semibold text-foreground">Execution comparison</h2>
+              <span className="text-xs text-muted-foreground">Click any step to inspect the underlying tool call</span>
+            </div>
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-2">
+              <AgentColumn
+                config={providerConfigs.openai}
+                run={runs.openai}
+                onSelect={setSelectedEvent}
+                onStop={() => handleStop("openai")}
+                connectionError={openai.connectionError}
+              />
+              <AgentColumn
+                config={providerConfigs.anthropic}
+                run={runs.anthropic}
+                onSelect={setSelectedEvent}
+                onStop={() => handleStop("anthropic")}
+                connectionError={anthropic.connectionError}
+              />
+            </div>
+          </section>
+
+          {failed.length > 0 && !anyActive && (
+            <div className="flex shrink-0 items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0 text-red-600" />
+              <div>
+                <div className="text-sm font-medium text-red-700">
+                  {failed.map((id) => providerConfigs[id].vendor).join(" and ")} failed
+                </div>
+                <div className="text-xs text-red-600/80">Review the execution timeline above for the failing step.</div>
+              </div>
+            </div>
+          )}
+
+          {showComparison && (
+            <div className="shrink-0 space-y-6 pb-2">
+              <ResultComparison runs={runs} />
+              <Evaluation
+                scores={active?.evaluations ?? {}}
+                onScore={handleScore}
+                available={evaluable}
+                saved={active?.savedEvaluations ?? {}}
+              />
+            </div>
+          )}
+        </div>
       </main>
 
       <EventDrawer event={selectedEvent} onClose={() => setSelectedEvent(null)} />
