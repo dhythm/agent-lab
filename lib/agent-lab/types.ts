@@ -1,6 +1,6 @@
 export type ProviderId = "openai" | "anthropic"
 
-export type TaskType = "coding" | "research" | "data" | "general" | "article"
+export type TaskType = "coding" | "research" | "data" | "general" | "article" | "seo-proofread"
 
 export type RunStatus =
   | "queued"
@@ -34,6 +34,7 @@ export interface StoredFile {
 export interface AgentTask {
   id: string
   title: string
+  systemPrompt?: string
   prompt: string
   type: TaskType
   repository?: string
@@ -70,6 +71,10 @@ export interface AgentResult {
   changedFiles: string[]
   testResult?: string
   finalOutput: string
+  outputValidation?: {
+    valid: boolean
+    error?: string
+  }
   /** Files the agent produced in its output directory, copied to the server. */
   artifacts?: StoredFile[]
 }

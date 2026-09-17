@@ -61,4 +61,16 @@ describe("buildTaskPrompt", () => {
       "/mnt/session/outputs",
     )
   })
+
+  it("passes SEO proofreading user input through without agent-lab guidance", () => {
+    const prompt = "## 入力文:\n提出されたSEO記事"
+    const text = buildTaskPrompt(
+      { ...base, prompt, systemPrompt: "SEO system", type: "seo-proofread" },
+      { outputDir: "/workspace/outputs" },
+    )
+
+    expect(text).toBe(prompt)
+    expect(text).not.toContain("concise summary")
+    expect(text).not.toContain("/workspace/outputs")
+  })
 })

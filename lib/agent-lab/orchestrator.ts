@@ -1,6 +1,7 @@
 import type { AgentProvider, ProviderRunHandle, ProviderRunSink } from "./provider"
 import type { RunStore } from "./run-store"
 import type { AgentRun, AgentTask, ProviderId } from "./types"
+import { validateSeoOutput } from "./seo-output"
 
 export interface Orchestrator {
   start(task: AgentTask, providers: ProviderId[]): Promise<AgentRun[]>
@@ -74,6 +75,32 @@ export function createOrchestrator(options: OrchestratorOptions): Orchestrator {
       })
       const handle = await handlePromise
       const outcome = await handle.done
+      if (task.type === "seo-proofread") {
+        const validation = validateSeoOutput(task.prompt, outcome.result.finalOutput)
+        if (!validation.ok) {
+          await store.appendEvent(run.id, {
+            type: "error",
+            title: "Invalid SEO output",
+            detail: validation.error,
+            timestamp: new Date().toISOString(),
+          })
+          await store.updateRun(run.id, {
+            status: "failed",
+            error: validation.error,
+            result: {
+              ...outcome.result,
+              outputValidation: { valid: false, error: validation.error },
+            },
+            completedAt: new Date().toISOString(),
+          })
+          return
+        }
+        outcome.result = {
+          ...outcome.result,
+          finalOutput: validation.output,
+          outputValidation: { valid: true },
+        }
+      }
       await store.appendEvent(run.id, {
         type: "final_output",
         title: "Final output",

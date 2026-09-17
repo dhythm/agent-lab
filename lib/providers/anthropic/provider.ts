@@ -15,7 +15,11 @@ import { createActionApplier } from "../shared/apply-actions"
 import { buildTaskPrompt, normalizeRepositoryUrl, repositoryName } from "../shared/task-prompt"
 import { createResultTracker } from "../shared/result-tracker"
 import { createAnthropicNormalizer } from "./normalize"
-import { ensureAnthropicResources, type AnthropicResources } from "./setup"
+import {
+  ANTHROPIC_SYSTEM_PROMPT,
+  ensureAnthropicResources,
+  type AnthropicResources,
+} from "./setup"
 
 type SessionEvent = Anthropic.Beta.Sessions.BetaManagedAgentsSessionEvent
 type StreamEvent = Anthropic.Beta.Sessions.BetaManagedAgentsStreamSessionEvents
@@ -82,22 +86,24 @@ export function createAnthropicProvider(config: AgentLabConfig, files: FileStore
     }
     return artifacts
   }
-  let resources: Promise<AnthropicResources> | undefined
+  const resources = new Map<string, Promise<AnthropicResources>>()
 
-  function getResources(): Promise<AnthropicResources> {
-    if (!resources) {
-      resources = ensureAnthropicResources({
+  function getResources(system: string): Promise<AnthropicResources> {
+    const existing = resources.get(system)
+    if (existing) return existing
+    const pending = ensureAnthropicResources({
         client,
         model: config.anthropic.model,
         dataDir: config.dataDir,
         agentId: config.anthropic.agentId,
         environmentId: config.anthropic.environmentId,
+        system,
       }).catch((error) => {
-        resources = undefined
+        resources.delete(system)
         throw error
       })
-    }
-    return resources
+    resources.set(system, pending)
+    return pending
   }
 
   async function run(
@@ -106,7 +112,9 @@ export function createAnthropicProvider(config: AgentLabConfig, files: FileStore
     state: { sessionId?: string; cancelled: boolean; abort?: AbortController },
   ): Promise<ProviderRunOutcome> {
     const { task } = input
-    const { agentId, agentVersion, environmentId } = await getResources()
+    const { agentId, agentVersion, environmentId } = await getResources(
+      task.systemPrompt ?? ANTHROPIC_SYSTEM_PROMPT,
+    )
     const repository = normalizeRepositoryUrl(task.repository)
     const workspacePath = repository ? `/workspace/${repositoryName(repository)}` : undefined
     const prompt = buildTaskPrompt(task, { workspacePath, outputDir: OUTPUT_DIR, inputDir: INPUT_DIR_IN_SANDBOX })

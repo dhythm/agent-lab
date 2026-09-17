@@ -44,7 +44,8 @@ GitHub リポジトリが無くても試せるよう、添付ファイル付き�
 | Research: hosting comparison | research | Web 検索、情報収集、比較表付きレポート生成 |
 | Document: meeting notes → summary | general | 文書理解、決定事項 / アクション抽出 |
 | Coding: self-contained kata | coding | リポジトリ無しでの実装 + テスト。成果物は出力ディレクトリに保存 |
-| Content: SEO article body | article | Task 欄が `{{変数}}` 入りのライター用プロンプト。添付 JSON で変数を埋めた本文が Agent に渡り、Agent が書いた article.json をスキーマと文字数目標で検証 |
+| SEO article writing | article | Task 欄が `{{変数}}` 入りのライター用プロンプト。添付 JSON で変数を埋めた本文が Agent に渡り、Agent が書いた article.json をスキーマと文字数目標で検証 |
+| SEO article proofreading | seo-proofread | 提示された system / user 入力で引用と読みやすさを校閲し、章構成を保った JSON を返す |
 
 添付ファイルはサンドボックスの `/workspace/inputs/` に配置されます。Agent が出力ディレクトリ (Anthropic: `/mnt/session/outputs`、OpenAI: `/workspace/outputs`) に書いたファイルは Run 完了後に取得され、Result から ダウンロードできます。
 

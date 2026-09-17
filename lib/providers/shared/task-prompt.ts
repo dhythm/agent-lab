@@ -29,9 +29,12 @@ const TYPE_GUIDANCE: Record<AgentTask["type"], string> = {
   data: "Load the provided data, analyze it with code, and write your findings to a Markdown file.",
   general: "Complete the task as precisely as possible.",
   article: "Follow the prompt above exactly. Do not run code, search the web, or open files other than the input files.",
+  "seo-proofread": "",
 }
 
 export function buildTaskPrompt(task: AgentTask, options: TaskPromptOptions): string {
+  if (task.type === "seo-proofread") return task.prompt
+
   const lines: string[] = [task.prompt.trim(), ""]
   const repository = normalizeRepositoryUrl(task.repository)
   if (repository) {

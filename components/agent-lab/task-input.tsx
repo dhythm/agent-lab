@@ -6,6 +6,7 @@ import { taskPresets } from "@/lib/agent-lab/presets"
 import type { TaskType } from "@/lib/agent-lab/types"
 
 export interface TaskFormValue {
+  systemPrompt: string
   task: string
   repository: string
   branch: string
@@ -15,12 +16,13 @@ export interface TaskFormValue {
 }
 
 export const DEFAULT_TASK_FORM: TaskFormValue = {
-  task: taskPresets[0].prompt,
+  systemPrompt: "",
+  task: taskPresets.find((preset) => preset.id === "coding-redirect")!.prompt,
   repository: "",
   branch: "main",
   type: "coding",
   files: [],
-  presetId: taskPresets[0].id,
+  presetId: "coding-redirect",
 }
 
 const TASK_TYPES: { value: TaskType; label: string }[] = [
@@ -29,6 +31,7 @@ const TASK_TYPES: { value: TaskType; label: string }[] = [
   { value: "data", label: "Data Analysis" },
   { value: "general", label: "General" },
   { value: "article", label: "Article (structured output)" },
+  { value: "seo-proofread", label: "SEO article proofreading" },
 ]
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
@@ -73,8 +76,26 @@ export function TaskInput({
 
   return (
     <section className="rounded-xl border border-border bg-card p-4 md:p-5">
+      {(value.systemPrompt || value.type === "seo-proofread") && (
+        <div className="mb-3">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <FieldLabel>System instructions</FieldLabel>
+            <span className="text-xs text-muted-foreground">{value.systemPrompt.length} chars</span>
+          </div>
+          <textarea
+            value={value.systemPrompt}
+            onChange={(e) =>
+              onChange({ ...value, systemPrompt: e.target.value, presetId: undefined })
+            }
+            disabled={disabled}
+            rows={6}
+            className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2.5 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:opacity-60"
+            placeholder="System instructions"
+          />
+        </div>
+      )}
       <div className="mb-2 flex items-center justify-between gap-3">
-        <FieldLabel>Task</FieldLabel>
+        <FieldLabel>{value.type === "seo-proofread" ? "User input" : "Task"}</FieldLabel>
         <div className="flex items-center gap-2">
           <div className="relative flex items-center rounded-lg border border-border bg-background px-2 py-1">
             <LayoutTemplate className="mr-1.5 size-3.5 text-muted-foreground" />
@@ -100,8 +121,8 @@ export function TaskInput({
         value={value.task}
         onChange={(e) => onChange({ ...value, task: e.target.value, presetId: undefined })}
         disabled={disabled}
-        rows={4}
-        className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2.5 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:opacity-60"
+        rows={value.type === "seo-proofread" ? 10 : 4}
+        className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2.5 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:opacity-60"
         placeholder="Describe the task for both agents..."
       />
 

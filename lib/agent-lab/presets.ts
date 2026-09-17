@@ -7,6 +7,9 @@ export interface TaskPreset {
   description: string
   type: TaskType
   prompt: string
+  systemPrompt?: string
+  promptUrl?: string
+  systemPromptUrl?: string
   repository?: string
   /** Sample files served from /public that are attached automatically. */
   samples?: { name: string; url: string }[]
@@ -70,11 +73,20 @@ export const taskPresets: TaskPreset[] = [
   },
   {
     id: "content-seo-article",
-    label: "Content: SEO article body (template → JSON)",
+    label: "SEO article writing",
     description: "Task text is the writer prompt with {{variables}}; the JSON attachment fills them, the agent writes article.json",
     type: "article",
     prompt: ARTICLE_TASK_TEMPLATE,
     samples: [{ name: "article-input.json", url: "/samples/article-writer/article-input.json" }],
+  },
+  {
+    id: "seo-proofread",
+    label: "SEO article proofreading",
+    description: "Proofread citations and readability into strict JSON",
+    type: "seo-proofread",
+    prompt: "",
+    promptUrl: "/samples/seo-proofread-user.txt",
+    systemPromptUrl: "/samples/seo-proofread-system.txt",
   },
 ]
 

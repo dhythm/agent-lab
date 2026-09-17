@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises"
+import { createHash } from "node:crypto"
 import path from "node:path"
 import type Anthropic from "@anthropic-ai/sdk"
 
@@ -22,14 +23,19 @@ export interface EnsureResourcesOptions {
   dataDir: string
   agentId?: string
   environmentId?: string
+  system?: string
+}
+
+interface CachedAgent {
+  agentId: string
+  agentVersion: number
+  model: string
+  system: string
 }
 
 interface CacheFile {
-  agentId: string
-  agentVersion: number
   environmentId: string
-  model: string
-  system: string
+  agents: Record<string, CachedAgent>
 }
 
 function cachePath(dataDir: string): string {
@@ -38,7 +44,15 @@ function cachePath(dataDir: string): string {
 
 async function readCache(dataDir: string): Promise<CacheFile | undefined> {
   try {
-    return JSON.parse(await readFile(cachePath(dataDir), "utf8")) as CacheFile
+    const parsed = JSON.parse(await readFile(cachePath(dataDir), "utf8")) as
+      | CacheFile
+      | (CachedAgent & { environmentId: string })
+    if ("agents" in parsed) return parsed
+    const key = agentCacheKey(parsed.model, parsed.system)
+    return {
+      environmentId: parsed.environmentId,
+      agents: { [key]: parsed },
+    }
   } catch {
     return undefined
   }
@@ -56,6 +70,26 @@ const AGENT_TOOLS: Anthropic.Beta.Agents.AgentCreateParams["tools"] = [
   },
 ]
 
+function agentCacheKey(model: string, system: string): string {
+  return createHash("sha256").update(`${model}\0${system}`).digest("hex")
+}
+
+let resourceLock: Promise<void> = Promise.resolve()
+
+async function withResourceLock<T>(operation: () => Promise<T>): Promise<T> {
+  const previous = resourceLock
+  let release = () => {}
+  resourceLock = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  await previous
+  try {
+    return await operation()
+  } finally {
+    release()
+  }
+}
+
 /**
  * Agents and environments are persistent, versioned resources: create them once,
  * cache the IDs on disk, and reuse them for every session. Explicit IDs from the
@@ -64,46 +98,50 @@ const AGENT_TOOLS: Anthropic.Beta.Agents.AgentCreateParams["tools"] = [
 export async function ensureAnthropicResources(
   options: EnsureResourcesOptions,
 ): Promise<AnthropicResources> {
-  const { client, model, dataDir } = options
-  const cache = await readCache(dataDir)
+  return withResourceLock(async () => {
+    const { client, model, dataDir } = options
+    const system = options.system ?? ANTHROPIC_SYSTEM_PROMPT
+    const key = agentCacheKey(model, system)
+    const cache = await readCache(dataDir)
 
-  let environmentId = options.environmentId ?? cache?.environmentId
-  if (!environmentId) {
-    const environment = await client.beta.environments.create({
-      name: "agent-lab",
-      description: "Agent Lab sandbox (cloud, unrestricted networking)",
-      config: { type: "cloud", networking: { type: "unrestricted" } },
-    })
-    environmentId = environment.id
-  }
+    let environmentId = options.environmentId ?? cache?.environmentId
+    if (!environmentId) {
+      const environment = await client.beta.environments.create({
+        name: "agent-lab",
+        description: "Agent Lab sandbox (cloud, unrestricted networking)",
+        config: { type: "cloud", networking: { type: "unrestricted" } },
+      })
+      environmentId = environment.id
+    }
 
-  let agentId = options.agentId ?? cache?.agentId
-  let agentVersion = cache?.agentVersion ?? 1
-  const modelParam = { id: model, effort: "high" as const }
-  if (!agentId) {
-    const agent = await client.beta.agents.create({
-      name: "agent-lab",
-      description: "Agent Lab coding/research/data agent",
-      model: modelParam,
-      system: ANTHROPIC_SYSTEM_PROMPT,
-      tools: AGENT_TOOLS,
-    })
-    agentId = agent.id
-    agentVersion = agent.version
-  } else if (
-    !options.agentId &&
-    cache &&
-    (cache.model !== model || cache.system !== ANTHROPIC_SYSTEM_PROMPT)
-  ) {
-    const agent = await client.beta.agents.update(agentId, {
-      model: modelParam,
-      system: ANTHROPIC_SYSTEM_PROMPT,
-      tools: AGENT_TOOLS,
-    })
-    agentVersion = agent.version
-  }
+    const explicitAgentId =
+      system === ANTHROPIC_SYSTEM_PROMPT ? options.agentId : undefined
+    const cachedAgent = cache?.agents[key]
+    let agentId = explicitAgentId ?? cachedAgent?.agentId
+    let agentVersion = cachedAgent?.agentVersion ?? 1
+    if (!agentId) {
+      const agent = await client.beta.agents.create({
+        name: system === ANTHROPIC_SYSTEM_PROMPT ? "agent-lab" : `agent-lab-${key.slice(0, 8)}`,
+        description:
+          system === ANTHROPIC_SYSTEM_PROMPT
+            ? "Agent Lab coding/research/data agent"
+            : "Agent Lab task-specific agent",
+        model: { id: model, effort: "high" as const },
+        system,
+        tools: AGENT_TOOLS,
+      })
+      agentId = agent.id
+      agentVersion = agent.version
+    }
 
-  const resources: AnthropicResources = { agentId, agentVersion, environmentId, model }
-  await writeCache(dataDir, { ...resources, system: ANTHROPIC_SYSTEM_PROMPT })
-  return resources
+    const resources: AnthropicResources = { agentId, agentVersion, environmentId, model }
+    await writeCache(dataDir, {
+      environmentId,
+      agents: {
+        ...cache?.agents,
+        [key]: { agentId, agentVersion, model, system },
+      },
+    })
+    return resources
+  })
 }

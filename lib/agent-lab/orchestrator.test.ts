@@ -20,6 +20,21 @@ const task: AgentTask = {
   createdAt: "2026-09-14T00:00:00.000Z",
 }
 
+const seoTask: AgentTask = {
+  id: "task_seo",
+  title: "SEO",
+  systemPrompt: "Return JSON only.",
+  prompt: `### 提出されたSEO記事:
+#### タイトル:
+元タイトル
+#### 内容:
+[{"id":1,"heading":"概要","content":{"paragraphs":["本文。"]},"sections":[]}]
+### クローリング記事（タイトル、内容、リンク）:
+[]`,
+  type: "seo-proofread",
+  createdAt: "2026-09-14T00:00:00.000Z",
+}
+
 function fakeProvider(
   id: ProviderId,
   behavior: (input: ProviderRunInput, sink: ProviderRunSink) => ProviderRunHandle,
@@ -129,6 +144,47 @@ describe("orchestrator", () => {
     const failed = await store.getRun(openai.id)
     expect(failed?.error).toBe("boom")
     expect(failed?.events.at(-1)?.type).toBe("error")
+  })
+
+  it("canonicalizes valid SEO JSON and records validation", async () => {
+    const provider = fakeProvider("openai", () => ({
+      done: Promise.resolve({
+        result: {
+          summary: "done",
+          changedFiles: [],
+          finalOutput: `{
+            "contents": [{"id": 1, "heading": "概要", "content": {"paragraphs": ["本文。"]}, "sections": []}],
+            "title": "元タイトル"
+          }`,
+        },
+      }),
+      cancel: async () => {},
+    }))
+    orchestrator = createOrchestrator({ store, providers: [provider] })
+    const [run] = await orchestrator.start(seoTask, ["openai"])
+    await waitFor(store, run.id, "completed")
+
+    const saved = await store.getRun(run.id)
+    expect(saved?.result?.outputValidation).toEqual({ valid: true })
+    expect(saved?.result?.finalOutput).toBe(
+      '{"contents":[{"id":1,"heading":"概要","content":{"paragraphs":["本文。"]},"sections":[]}],"title":"元タイトル"}',
+    )
+  })
+
+  it("fails an SEO run whose final output is not valid JSON", async () => {
+    const provider = fakeProvider("openai", () => ({
+      done: Promise.resolve({
+        result: { summary: "done", changedFiles: [], finalOutput: "not json" },
+      }),
+      cancel: async () => {},
+    }))
+    orchestrator = createOrchestrator({ store, providers: [provider] })
+    const [run] = await orchestrator.start(seoTask, ["openai"])
+    await waitFor(store, run.id, "failed")
+
+    const saved = await store.getRun(run.id)
+    expect(saved?.result?.outputValidation?.valid).toBe(false)
+    expect(saved?.error).toMatch(/JSON/)
   })
 
   it("marks a run failed when the provider is not configured", async () => {

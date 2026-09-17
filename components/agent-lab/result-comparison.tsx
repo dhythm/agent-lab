@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { CircleCheckBig, CircleX, ChevronDown, ChevronRight, Download } from "lucide-react"
+import { CircleCheckBig, CircleX, ChevronDown, ChevronRight, Copy, Download } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ProviderMark } from "./provider-mark"
 import { providerConfigs, providerOrder } from "@/lib/agent-lab-data"
@@ -10,6 +10,7 @@ import { formatCost, formatCount, formatDuration, formatTokens } from "@/lib/age
 
 function ResultCard({ id, run }: { id: ProviderId; run?: AgentRun }) {
   const [open, setOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
   const config = providerConfigs[id]
   const ok = run?.status === "completed"
   return (
@@ -41,6 +42,18 @@ function ResultCard({ id, run }: { id: ProviderId; run?: AgentRun }) {
 
       {run?.result && (
         <div className="mt-3 space-y-2 border-t border-border pt-3">
+          {run.result.outputValidation && (
+            <div
+              className={cn(
+                "text-xs font-medium",
+                run.result.outputValidation.valid ? "text-emerald-700" : "text-red-700",
+              )}
+            >
+              {run.result.outputValidation.valid
+                ? "JSON validation passed"
+                : `JSON validation failed: ${run.result.outputValidation.error}`}
+            </div>
+          )}
           <p className="text-sm leading-relaxed text-foreground">{run.result.summary}</p>
           {(run.result.artifacts?.length ?? 0) > 0 && (
             <div>
@@ -69,14 +82,30 @@ function ResultCard({ id, run }: { id: ProviderId; run?: AgentRun }) {
               ))}
             </ul>
           )}
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
-          >
-            {open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-            Final output
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+            >
+              {open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+              Final output
+            </button>
+            {run.result.outputValidation?.valid && (
+              <button
+                type="button"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(run.result!.finalOutput)
+                  setCopied(true)
+                  window.setTimeout(() => setCopied(false), 1500)
+                }}
+                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+              >
+                <Copy className="size-3.5" />
+                {copied ? "Copied" : "Copy JSON"}
+              </button>
+            )}
+          </div>
           {open && (
             <pre className="max-h-96 overflow-auto rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap text-foreground">
               {run.result.finalOutput || "(empty)"}

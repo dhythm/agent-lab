@@ -133,7 +133,7 @@ export function createOpenAIProvider(config: AgentLabConfig, files: FileStore): 
     const stream = await client.beta.agents.sessions.create({
       agent: {
         model: config.openai.model,
-        instructions: OPENAI_INSTRUCTIONS,
+        instructions: task.systemPrompt ?? OPENAI_INSTRUCTIONS,
         reasoning: { effort: "high", summary: "auto" },
       },
       environment: {
