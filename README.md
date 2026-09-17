@@ -44,17 +44,17 @@ GitHub リポジトリが無くても試せるよう、添付ファイル付き�
 | Research: hosting comparison | research | Web 検索、情報収集、比較表付きレポート生成 |
 | Document: meeting notes → summary | general | 文書理解、決定事項 / アクション抽出 |
 | Coding: self-contained kata | coding | リポジトリ無しでの実装 + テスト。成果物は出力ディレクトリに保存 |
-| SEO article writing | article | Task 欄が `{{変数}}` 入りのライター用プロンプト。添付 JSON で変数を埋めた本文が Agent に渡り、Agent が書いた article.json をスキーマと文字数目標で検証 |
+| SEO article writing | article | 添付 JSON で変数を埋めた user input を表示し、system prompt はサーバー側で設定。Agent が書いた article.json をスキーマと文字数目標で検証 |
 | SEO article proofreading | seo-proofread | 提示された system / user 入力で引用と読みやすさを校閲し、章構成を保った JSON を返す |
 
 添付ファイルはサンドボックスの `/workspace/inputs/` に配置されます。Agent が出力ディレクトリ (Anthropic: `/mnt/session/outputs`、OpenAI: `/workspace/outputs`) に書いたファイルは Run 完了後に取得され、Result から ダウンロードできます。
 
 ### 記事本文の生成 (テンプレート + 入力 → JSON)
 
-Task type `Article (structured output)` では、Task 欄のテキストを **プロンプトのテンプレート** として扱います。`{{seoKeywords}}` `{{title}}` `{{chapters}}` `{{references}}` などの変数を添付 JSON (例: `public/samples/article-writer/article-input.json`) の値で埋め、末尾に出力先 (`article.json`) と JSON Schema を付けて、通常のタスクと同じように OpenAI / Claude の Agent へ渡します。Run 完了後、Agent が出力ディレクトリに書いた `article.json` (無ければ最終回答の JSON) をスキーマで検証し、章・節ごとの targetCharCount との差を Timeline に出します。結果の Tests 欄が `JSON schema: passed / failed` になります。
+Task type `Article (structured output)` では、`## 入力文:` より上を **system prompt** として扱い、添付 JSON の値で変数を埋めます。フォームには変数埋め込み済みの user input だけを表示します。Run 時は system / user を分けて OpenAI / Claude へ渡し、末尾に出力先 (`article.json`) と JSON Schema を付けます。完了後、Agent が出力ディレクトリに書いた `article.json` (無ければ最終回答の JSON) をスキーマで検証し、章・節ごとの targetCharCount との差を Timeline に出します。結果の Tests 欄が `JSON schema: passed / failed` になります。
 
 - 添付 JSON は `chapters` / `references` をテキストで持つ形式か、章・節・参照を構造化した `outline` を含む形式のどちらでもよい
-- テンプレート側の変数と JSON の値が合わない (未知の変数、必須値の欠落) 場合は Agent を呼ばずに失敗する
+- JSON の必須値が欠ける場合は Agent を呼ばずに失敗する
 - `/api/article` は同じテンプレートを Messages / Responses API の構造化出力で直接呼ぶ HTTP 入口 (サンドボックスなし)
 
 ```bash

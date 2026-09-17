@@ -10,7 +10,8 @@ import type {
 } from "@/lib/agent-lab/provider"
 import type { AgentLabConfig } from "@/lib/agent-lab/config"
 import type { FileStore } from "@/lib/agent-lab/files"
-import type { StoredFile } from "@/lib/agent-lab/types"
+import { AUTO_POST_AI_REVIEW_RESPONSE_JSON_SCHEMA } from "@/lib/agent-lab/seo-output"
+import type { AgentTask, StoredFile } from "@/lib/agent-lab/types"
 import { createActionApplier } from "../shared/apply-actions"
 import { buildTaskPrompt, normalizeRepositoryUrl, repositoryName } from "../shared/task-prompt"
 import { createResultTracker } from "../shared/result-tracker"
@@ -55,6 +56,18 @@ export function estimateCost(usage: ProviderUsage | undefined, config: AgentLabC
     (cached / 1_000_000) * config.openai.cachedInputPricePerMillion
   const output = ((usage.outputTokens ?? 0) / 1_000_000) * config.openai.outputPricePerMillion
   return Math.round((input + output) * 10_000) / 10_000
+}
+
+export function openAIAgentText(
+  task: AgentTask,
+): OpenAI.Beta.Agents.AgentTextParam | undefined {
+  if (task.type !== "seo-proofread") return undefined
+  return {
+    format: {
+      type: "json_schema",
+      schema: AUTO_POST_AI_REVIEW_RESPONSE_JSON_SCHEMA.schema,
+    },
+  }
 }
 
 export function createOpenAIProvider(config: AgentLabConfig, files: FileStore): AgentProvider {
@@ -135,6 +148,7 @@ export function createOpenAIProvider(config: AgentLabConfig, files: FileStore): 
         model: config.openai.model,
         instructions: task.systemPrompt ?? OPENAI_INSTRUCTIONS,
         reasoning: { effort: "high", summary: "auto" },
+        text: openAIAgentText(task),
       },
       environment: {
         type: "openai_hosted",

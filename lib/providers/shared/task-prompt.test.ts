@@ -73,4 +73,15 @@ describe("buildTaskPrompt", () => {
     expect(text).not.toContain("concise summary")
     expect(text).not.toContain("/workspace/outputs")
   })
+
+  it("passes article writing user input through without agent-lab guidance", () => {
+    const prompt = "## 入力文:\nタイトル"
+    const text = buildTaskPrompt(
+      { ...base, prompt, systemPrompt: "Article system", type: "article" },
+      { outputDir: "/workspace/outputs" },
+    )
+
+    expect(text).toBe(prompt)
+    expect(text).not.toContain("concise summary")
+  })
 })

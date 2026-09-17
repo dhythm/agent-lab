@@ -75,7 +75,7 @@ export function TaskInput({
   return (
     <section className="rounded-xl border border-border bg-card p-4 md:p-5">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <FieldLabel>{value.type === "seo-proofread" ? "User input" : "Task"}</FieldLabel>
+        <FieldLabel>{value.type === "seo-proofread" || value.type === "article" ? "User input" : "Task"}</FieldLabel>
         <div className="flex items-center gap-2">
           <div className="relative flex items-center rounded-lg border border-border bg-background px-2 py-1">
             <LayoutTemplate className="mr-1.5 size-3.5 text-muted-foreground" />
@@ -101,7 +101,7 @@ export function TaskInput({
         value={value.task}
         onChange={(e) => onChange({ ...value, task: e.target.value, presetId: undefined })}
         disabled={disabled}
-        rows={value.type === "seo-proofread" ? 10 : 4}
+        rows={value.type === "seo-proofread" || value.type === "article" ? 10 : 4}
         className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2.5 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:opacity-60"
         placeholder="Describe the task for both agents..."
       />

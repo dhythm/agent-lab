@@ -1,5 +1,4 @@
 import type { TaskType } from "./types"
-import { ARTICLE_TASK_TEMPLATE } from "@/lib/article-writer/template"
 
 export interface TaskPreset {
   id: string
@@ -72,9 +71,9 @@ export const taskPresets: TaskPreset[] = [
   {
     id: "content-seo-article",
     label: "SEO article writing",
-    description: "Task text is the writer prompt with {{variables}}; the JSON attachment fills them, the agent writes article.json",
+    description: "Filled user input plus JSON attachment; the agent writes article.json",
     type: "article",
-    prompt: ARTICLE_TASK_TEMPLATE,
+    prompt: "",
     samples: [{ name: "article-input.json", url: "/samples/article-writer/article-input.json" }],
   },
   {

@@ -10,6 +10,7 @@ import {
   type TaskFormValue,
 } from "@/components/agent-lab/task-input"
 import { findPreset } from "@/lib/agent-lab/presets"
+import { userPromptFromArticleJson } from "@/lib/article-writer/input-schema"
 import { AgentSetup, type ProviderAvailability } from "@/components/agent-lab/agent-setup"
 import { AgentColumn } from "@/components/agent-lab/agent-column"
 import { ResultComparison } from "@/components/agent-lab/result-comparison"
@@ -179,6 +180,10 @@ export default function Page() {
       ])
       files = loadedFiles
       task = loadedTask
+      if (preset.type === "article") {
+        const jsonFile = files.find((file) => file.name.toLowerCase().endsWith(".json"))
+        if (jsonFile) task = userPromptFromArticleJson(JSON.parse(await jsonFile.text()))
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load sample files")
       return

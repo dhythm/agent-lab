@@ -131,7 +131,7 @@ describe("createArticleProvider", () => {
     expect(base.received[0].task.prompt).toBe(task.prompt)
   })
 
-  it("sends the rendered template plus the output instruction to the agent and validates article.json", async () => {
+  it("sends a filled system prompt and user input to the agent and validates article.json", async () => {
     const base = fakeBase(files, async (input) => ({
       artifacts: [await files.saveArtifact(input.runId, "article.json", Buffer.from(JSON.stringify(article)))],
     }))
@@ -140,11 +140,16 @@ describe("createArticleProvider", () => {
     const handle = await provider.startRun({ runId: "run", task: await articleTask(articleInput) }, sink)
     const outcome = await handle.done
 
-    const sent = base.received[0].task.prompt
-    expect(sent).toContain("### タイトル:\nタイトル\n")
-    expect(sent).not.toMatch(/\{\{/)
-    expect(sent).toContain("article.json")
-    expect(sent).toContain('"contents"')
+    const sent = base.received[0].task
+    expect(sent.systemPrompt).toContain("「AI,評価,倫理,構成」を扱う専門ライター")
+    expect(sent.systemPrompt).not.toContain("## 入力文:")
+    expect(sent.systemPrompt).not.toMatch(/\{\{/)
+    expect(sent.prompt.startsWith("## 入力文:")).toBe(true)
+    expect(sent.prompt).toContain("### タイトル:\nタイトル\n")
+    expect(sent.prompt).not.toContain("## 役割")
+    expect(sent.prompt).not.toMatch(/\{\{/)
+    expect(sent.prompt).toContain("article.json")
+    expect(sent.prompt).toContain('"contents"')
     expect(events.map((e) => e.type)).toEqual(["planning", "success"])
     expect(events[1].detail).toContain("この記事のまとめ")
     expect(outcome.result.testResult).toMatch(/passed/)
@@ -174,6 +179,20 @@ describe("createArticleProvider", () => {
     expect(events.map((e) => e.type)).toEqual(["planning", "warning"])
     expect(events[1].detail).toMatch(/title/)
     expect(outcome.result.testResult).toMatch(/failed/)
+  })
+
+  it("passes an already filled user prompt through without the system section", async () => {
+    const base = fakeBase(files, async () => ({ finalOutput: JSON.stringify(article) }))
+    const provider = createArticleProvider(base, files)
+    const userPrompt = "## 入力文:\n### タイトル:\n編集済みタイトル"
+    const handle = await provider.startRun(
+      { runId: "run", task: await articleTask(articleInput, userPrompt) },
+      fakeSink().sink,
+    )
+    await handle.done
+    expect(base.received[0].task.prompt.startsWith("## 入力文:")).toBe(true)
+    expect(base.received[0].task.prompt).toContain("編集済みタイトル")
+    expect(base.received[0].task.systemPrompt).toContain("専門ライター")
   })
 
   it("fails before calling the agent when the input cannot fill the template", async () => {

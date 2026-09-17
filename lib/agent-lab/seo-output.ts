@@ -1,5 +1,73 @@
 import { z } from "zod"
 
+export const AUTO_POST_AI_REVIEW_RESPONSE_JSON_SCHEMA = {
+  name: "ai_review_output",
+  strict: true,
+  description: "AIレビュー後の記事",
+  schema: {
+    type: "object",
+    properties: {
+      contents: {
+        type: "array",
+        items: {
+          type: "object",
+          required: ["id", "heading", "content", "sections"],
+          additionalProperties: false,
+          properties: {
+            id: { type: "integer", description: "章番号" },
+            heading: { type: "string", description: "章見出し" },
+            content: {
+              type: "object",
+              description: "",
+              required: ["paragraphs"],
+              additionalProperties: false,
+              properties: {
+                paragraphs: {
+                  type: "array",
+                  description: "",
+                  items: { type: "string", description: "段落" },
+                },
+              },
+            },
+            sections: {
+              type: "array",
+              description: "",
+              items: {
+                type: "object",
+                required: ["id", "heading", "content"],
+                additionalProperties: false,
+                properties: {
+                  id: { type: "integer", description: "節番号" },
+                  heading: { type: "string", description: "節見出し" },
+                  content: {
+                    type: "object",
+                    description: "",
+                    required: ["paragraphs"],
+                    additionalProperties: false,
+                    properties: {
+                      paragraphs: {
+                        type: "array",
+                        description: "",
+                        items: { type: "string", description: "段落" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      title: {
+        type: "string",
+        description: "記事のタイトル",
+      },
+    },
+    required: ["contents", "title"],
+    additionalProperties: false,
+  },
+} as const
+
 const contentSchema = z.object({ paragraphs: z.array(z.string()) }).strict()
 const sectionSchema = z
   .object({

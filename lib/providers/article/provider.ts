@@ -5,7 +5,13 @@ import type { AgentTask } from "@/lib/agent-lab/types"
 import { articleInputSchema, describeIssues, toArticleInput } from "@/lib/article-writer/input-schema"
 import type { ArticleInput } from "@/lib/article-writer/input"
 import { ARTICLE_RESPONSE_JSON_SCHEMA, parseArticle, type ParseArticleResult } from "@/lib/article-writer/schema"
-import { renderTemplate, templateVariables } from "@/lib/article-writer/template"
+import {
+  ARTICLE_USER_TEMPLATE,
+  articlePromptVariables,
+  articleUserPromptFromTask,
+  renderArticleSystemPrompt,
+  renderTemplate,
+} from "@/lib/article-writer/template"
 import { buildLengthReport, type LengthReportEntry } from "@/lib/article-writer/write-article"
 
 const ARTICLE_FILE = "article.json"
@@ -28,20 +34,9 @@ export async function readArticleInput(task: AgentTask): Promise<ArticleInput> {
   return toArticleInput(parsed.data)
 }
 
-/** Fills the `{{...}}` placeholders of the Task text from the input. Unknown placeholders are an error. */
+/** Fills the `{{...}}` placeholders of a prompt template from the input. Unknown placeholders are an error. */
 export function renderArticleTask(template: string, input: ArticleInput): string {
-  const variables = {
-    ...templateVariables({
-      ...input,
-      coreKeyword: input.coreKeyword ?? input.seoKeywords,
-      topicKeyword: input.topicKeyword ?? input.seoKeywords.split(/[,、，]/).map((s) => s.trim()).filter(Boolean).at(-1) ?? input.seoKeywords,
-    }),
-    direction: input.direction.trim() || "なし",
-    title: input.title,
-    chapters: input.chapters,
-    references: input.references,
-  }
-  return renderTemplate(template, variables)
+  return renderTemplate(template, articlePromptVariables(input))
 }
 
 function outputInstruction(): string {
@@ -68,10 +63,9 @@ function preview(text: string, max = 2000): string {
 }
 
 /**
- * `article` tasks: the Task text is a prompt template, the JSON attachment holds the
- * variables. The rendered prompt goes to the wrapped sandbox provider like any other
- * task; afterwards the produced article.json (or the final answer) is validated
- * against the article schema and the length targets.
+ * `article` tasks: the JSON attachment holds the writer variables. The system
+ * prompt (everything above `## 入力文:`) is filled server-side; the Task field is
+ * the already-filled user input. Afterwards article.json is validated.
  */
 export function createArticleProvider(base: AgentProvider, files: FileStore): AgentProvider {
   async function locateArticle(runId: string, outcome: ProviderRunOutcome): Promise<{ source: string; parsed: ParseArticleResult; text: string }> {
@@ -132,9 +126,12 @@ export function createArticleProvider(base: AgentProvider, files: FileStore): Ag
 
       let articleInput: ArticleInput
       let prompt: string
+      let systemPrompt: string
       try {
         articleInput = await readArticleInput(input.task)
-        prompt = renderArticleTask(input.task.prompt, articleInput) + outputInstruction()
+        systemPrompt = renderArticleSystemPrompt(articleInput)
+        const source = input.task.prompt.trim() || ARTICLE_USER_TEMPLATE
+        prompt = articleUserPromptFromTask(renderArticleTask(source, articleInput)) + outputInstruction()
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         await sink.emit({ type: "error", title: "Could not render the task template", detail: message, timestamp: new Date().toISOString() })
@@ -148,7 +145,10 @@ export function createArticleProvider(base: AgentProvider, files: FileStore): Ag
         metadata: { tool: "template" },
       })
 
-      const handle = await base.startRun({ ...input, task: { ...input.task, prompt } }, sink)
+      const handle = await base.startRun(
+        { ...input, task: { ...input.task, prompt, systemPrompt } },
+        sink,
+      )
       return {
         done: handle.done.then((outcome) => finish(input, articleInput, sink, outcome)),
         cancel: () => handle.cancel(),

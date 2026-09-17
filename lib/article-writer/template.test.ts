@@ -1,5 +1,14 @@
+import { readFileSync } from "node:fs"
+import path from "node:path"
 import { describe, expect, it } from "vitest"
-import { renderTemplate, renderSystemPrompt, ARTICLE_SYSTEM_TEMPLATE } from "./template"
+import { articleInputSchema, toArticleInput } from "./input-schema"
+import {
+  ARTICLE_SYSTEM_TEMPLATE,
+  articleUserPromptFromTask,
+  renderArticleUserPrompt,
+  renderSystemPrompt,
+  renderTemplate,
+} from "./template"
 
 describe("renderTemplate", () => {
   it("replaces {{var}} and {{ var }} placeholders", () => {
@@ -42,5 +51,30 @@ describe("renderSystemPrompt", () => {
         "instructionForReference",
       ]),
     )
+  })
+})
+
+describe("renderArticleUserPrompt", () => {
+  it("fills the sample article JSON into a user prompt with no placeholders", () => {
+    const raw = JSON.parse(
+      readFileSync(path.join(process.cwd(), "public/samples/article-writer/article-input.json"), "utf8"),
+    ) as unknown
+    const parsed = articleInputSchema.safeParse(raw)
+    expect(parsed.success).toBe(true)
+    if (!parsed.success) return
+
+    const userPrompt = renderArticleUserPrompt(toArticleInput(parsed.data))
+    expect(userPrompt.startsWith("## 入力文:")).toBe(true)
+    expect(userPrompt).toContain("AI評価はなぜ難しい？")
+    expect(userPrompt).not.toMatch(/\{\{/)
+    expect(userPrompt).not.toContain("## 役割")
+  })
+})
+
+describe("articleUserPromptFromTask", () => {
+  it("keeps an already filled user prompt and splits a combined template", () => {
+    const filled = "## 入力文:\nタイトル本文"
+    expect(articleUserPromptFromTask(filled)).toBe(filled)
+    expect(articleUserPromptFromTask(`## 役割\n\n${filled}`)).toBe(filled)
   })
 })

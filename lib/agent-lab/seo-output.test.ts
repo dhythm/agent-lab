@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest"
 import { readFileSync } from "node:fs"
 import path from "node:path"
-import { validateSeoOutput } from "./seo-output"
+import {
+  AUTO_POST_AI_REVIEW_RESPONSE_JSON_SCHEMA,
+  validateSeoOutput,
+} from "./seo-output"
 
 const submitted = [
   {
@@ -44,6 +47,18 @@ function output(overrides: Record<string, unknown> = {}): string {
 }
 
 describe("validateSeoOutput", () => {
+  it("exports the strict ai_review output contract", () => {
+    expect(AUTO_POST_AI_REVIEW_RESPONSE_JSON_SCHEMA).toMatchObject({
+      name: "ai_review_output",
+      strict: true,
+      schema: {
+        type: "object",
+        required: ["contents", "title"],
+        additionalProperties: false,
+      },
+    })
+  })
+
   it("validates the built-in full-size SEO example", () => {
     const samples = path.join(process.cwd(), "public", "samples")
     const prompt = readFileSync(path.join(samples, "seo-proofread-user.txt"), "utf8")

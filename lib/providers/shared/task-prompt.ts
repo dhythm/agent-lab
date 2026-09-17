@@ -33,7 +33,7 @@ const TYPE_GUIDANCE: Record<AgentTask["type"], string> = {
 }
 
 export function buildTaskPrompt(task: AgentTask, options: TaskPromptOptions): string {
-  if (task.type === "seo-proofread") return task.prompt
+  if (task.type === "seo-proofread" || task.type === "article") return task.prompt
 
   const lines: string[] = [task.prompt.trim(), ""]
   const repository = normalizeRepositoryUrl(task.repository)

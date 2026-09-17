@@ -278,3 +278,54 @@ export function templateVariables(variables: ArticleTemplateVariables): Record<s
 export function renderSystemPrompt(variables: ArticleTemplateVariables): string {
   return renderTemplate(ARTICLE_SYSTEM_TEMPLATE, templateVariables(variables))
 }
+
+function keywordDefaults(input: {
+  seoKeywords: string
+  coreKeyword?: string
+  topicKeyword?: string
+}): Pick<ArticleTemplateVariables, "seoKeywords" | "coreKeyword" | "topicKeyword"> {
+  return {
+    seoKeywords: input.seoKeywords,
+    coreKeyword: input.coreKeyword ?? input.seoKeywords,
+    topicKeyword:
+      input.topicKeyword ??
+      input.seoKeywords.split(/[,、，]/).map((s) => s.trim()).filter(Boolean).at(-1) ??
+      input.seoKeywords,
+  }
+}
+
+type ArticlePromptInput = Omit<ArticleTemplateVariables, "coreKeyword" | "topicKeyword"> & {
+  coreKeyword?: string
+  topicKeyword?: string
+  direction: string
+  title: string
+  chapters: string
+  references: string
+}
+
+/** Values used to fill both the system template and the user-input template. */
+export function articlePromptVariables(input: ArticlePromptInput): Record<string, string> {
+  return {
+    ...templateVariables({ ...input, ...keywordDefaults(input) }),
+    direction: input.direction.trim() || "なし",
+    title: input.title,
+    chapters: input.chapters,
+    references: input.references,
+  }
+}
+
+export function renderArticleUserPrompt(input: ArticlePromptInput): string {
+  return renderTemplate(ARTICLE_USER_TEMPLATE, articlePromptVariables(input))
+}
+
+export function renderArticleSystemPrompt(input: ArticlePromptInput): string {
+  return renderTemplate(ARTICLE_SYSTEM_TEMPLATE, articlePromptVariables(input))
+}
+
+const USER_INPUT_MARKER = "## 入力文:"
+
+/** Keep only the user-input section when a combined system+user prompt is supplied. */
+export function articleUserPromptFromTask(text: string): string {
+  const index = text.indexOf(USER_INPUT_MARKER)
+  return (index >= 0 ? text.slice(index) : text).trim()
+}

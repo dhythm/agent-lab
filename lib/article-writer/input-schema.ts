@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { articleInputFromOutline, type ArticleInput } from "./input"
+import { renderArticleUserPrompt } from "./template"
 
 const templateFields = {
   seoKeywords: z.string().trim().min(1),
@@ -84,6 +85,14 @@ export const articleInputSchema = z.union([textArticleInputSchema, outlineArticl
 
 export function toArticleInput(value: z.infer<typeof articleInputSchema>): ArticleInput {
   return "outline" in value ? articleInputFromOutline(value) : value
+}
+
+/** Fills the writer user-input template from a JSON attachment (or /api/article request body). */
+export function userPromptFromArticleJson(raw: unknown): string {
+  const body = typeof raw === "object" && raw !== null && "input" in raw ? (raw as { input: unknown }).input : raw
+  const parsed = articleInputSchema.safeParse(body)
+  if (!parsed.success) throw new Error(describeIssues(parsed.error))
+  return renderArticleUserPrompt(toArticleInput(parsed.data))
 }
 
 function flatten(issues: z.core.$ZodIssue[]): z.core.$ZodIssue[] {
